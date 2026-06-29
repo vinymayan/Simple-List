@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Nexus Collection Builder',
+  title: 'Create List',
   description: 'Build Nexus Mods collections from the browser.'
 };
 

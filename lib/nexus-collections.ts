@@ -228,8 +228,7 @@ export async function listUserCollections(apiKey: string): Promise<{ collections
   if (!template) {
     return {
       source: 'not-configured',
-      collections: [],
-      message: 'Configure NEXUS_COLLECTIONS_LIST_URL_TEMPLATE para listar collections da conta; o OpenAPI local nao expoe esse endpoint.'
+      collections: []
     };
   }
 

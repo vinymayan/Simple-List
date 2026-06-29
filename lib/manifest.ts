@@ -6,7 +6,7 @@ export function buildCollectionManifest(draft: CollectionDraft) {
   return {
     manifestVersion: 1,
     generator: {
-      name: 'Nexus Collection Builder',
+      name: 'Create List',
       version: '0.1.0',
       generatedAt: now
     },
@@ -41,7 +41,7 @@ function fileSizeKb(sizeBytes?: number) {
     : null;
 }
 
-export function buildNexusCollectionPayload(draft: CollectionDraft, author = 'Nexus Collection Builder') {
+export function buildNexusCollectionPayload(draft: CollectionDraft, author = 'Create List') {
   const mods = draft.items
     .filter((item) => item.fileId)
     .map((item) => ({

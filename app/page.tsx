@@ -70,10 +70,10 @@ function groupFiles(files: ModFile[]) {
 }
 
 function groupTitle(group: string) {
-  if (group === 'MAIN') return 'Arquivos principais';
-  if (group === 'OPTIONAL') return 'Arquivos opcionais';
-  if (group === 'OLD_VERSION') return 'Arquivos antigos';
-  return 'Outros arquivos';
+  if (group === 'MAIN') return 'Main files';
+  if (group === 'OPTIONAL') return 'Optional files';
+  if (group === 'OLD_VERSION') return 'Old files';
+  return 'Other files';
 }
 
 function createCollectionItem(mod: ModSummary, file: ModFile, installOrder = 1): CollectionItem {
@@ -145,7 +145,7 @@ export default function Home() {
   const [collectionTextFilter, setCollectionTextFilter] = useState('');
   const [draggedItemId, setDraggedItemId] = useState<string | null>(null);
   const [draftMeta, setDraftMeta] = useState({
-    title: 'Minha Collection',
+    title: 'My Collection',
     description: '',
     preserveDescription: false,
     category: 'Gameplay',
@@ -215,7 +215,7 @@ export default function Home() {
       setAuth({ loading: false, error: '', data: result.user });
       setView('dashboard');
     } catch (error: any) {
-      setAuth({ loading: false, error: error.message || 'API key invalida.' });
+      setAuth({ loading: false, error: error.message || 'Invalid API key.' });
     }
   }
 
@@ -234,7 +234,7 @@ export default function Home() {
     setFilesState({ loading: false, error: '' });
     setSelectedFileIds([]);
     setDraftMeta({
-      title: 'Minha Collection',
+      title: 'My Collection',
       description: '',
       preserveDescription: false,
       category: 'Gameplay',
@@ -262,7 +262,7 @@ export default function Home() {
   function addCollectionLink() {
     const parsed = parseCollectionUrl(collectionLinkInput);
     if (!parsed) {
-      setCollectionLinkError('Informe um link da collection no formato next.nexusmods.com/{jogo}/collections/{slug}.');
+      setCollectionLinkError('Enter a collection link in the format next.nexusmods.com/{game}/collections/{slug}.');
       return;
     }
 
@@ -288,7 +288,7 @@ export default function Home() {
       const result = await api<{ collections: UserCollection[]; source: string; message?: string }>('/api/collections/list');
       setMyCollections({ loading: false, error: '', data: result });
     } catch (error: any) {
-      setMyCollections({ loading: false, error: error.message || 'Nao foi possivel carregar suas collections.' });
+      setMyCollections({ loading: false, error: error.message || 'Could not load your collections.' });
     }
   }
 
@@ -296,7 +296,7 @@ export default function Home() {
     setEditingCollection(collectionInfo);
     setSelectedGame(collectionInfo.game || DEFAULT_GAME);
     setDraftMeta({
-      title: collectionInfo.title || 'Minha Collection',
+      title: collectionInfo.title || 'My Collection',
       description: collectionInfo.description || '',
       preserveDescription: true,
       category: 'Gameplay',
@@ -313,7 +313,7 @@ export default function Home() {
   async function openModDetails() {
     const parsed = parseModId(modInput);
     if (!parsed) {
-      setModState({ loading: false, error: 'Informe um ID numerico ou uma URL da Nexus Mods.' });
+      setModState({ loading: false, error: 'Enter a numeric ID or a Nexus Mods URL.' });
       return;
     }
 
@@ -331,7 +331,7 @@ export default function Home() {
       const mainFiles = fileResult.files.filter((file) => String(file.category).toUpperCase().includes('MAIN'));
       setSelectedFileIds((mainFiles.length ? mainFiles : fileResult.files.slice(0, 1)).map((file) => file.id));
     } catch (error: any) {
-      const message = error.message || 'Nao foi possivel abrir os detalhes do mod.';
+      const message = error.message || 'Could not open mod details.';
       setModState((state) => ({ ...state, loading: false, error: message }));
       setFilesState({ loading: false, error: message });
     }
@@ -425,7 +425,7 @@ export default function Home() {
         setView('success');
       }
     } catch (error: any) {
-      setPublishState({ loading: false, error: error.message || 'Falha ao publicar collection.' });
+      setPublishState({ loading: false, error: error.message || 'Could not publish collection.' });
     }
   }
 
@@ -435,14 +435,14 @@ export default function Home() {
         <section className="stage-card narrow-stage login-only">
           <div className="welcome-card">
             <div className="orb-icon"><HydrationSafeIcon><KeyRound size={34} /></HydrationSafeIcon></div>
-            <h2>Validar API Key</h2>
-            <p>Informe sua chave da Nexus Mods para acessar o app.</p>
+            <h2>Validate API Key</h2>
+            <p>Enter your Nexus Mods key to access the app.</p>
             <div className="field">
               <label className="label">Nexus API Key</label>
               <input
                 className="input"
                 type="password"
-                placeholder="Cole sua API key"
+                placeholder="Paste your API key"
                 value={apiKey}
                 onChange={(event) => setApiKey(event.target.value)}
                 onKeyDown={(event) => event.key === 'Enter' && validateKey()}
@@ -450,7 +450,7 @@ export default function Home() {
             </div>
             <button className="btn btn-primary full" disabled={auth.loading || !apiKey.trim()} onClick={validateKey}>
               {auth.loading ? <Loader2 size={16} className="spin" /> : <HydrationSafeIcon><ShieldCheck size={16} /></HydrationSafeIcon>}
-              Confirmar API
+              Confirm API
             </button>
             {auth.error ? <div className="error">{auth.error}</div> : null}
           </div>
@@ -459,29 +459,26 @@ export default function Home() {
     );
   }
 
-  function renderTopbar() {
-    return (
-      <div className="session-bar">
-        <div className="session-brand">
-          <span>Nexus</span>
-          <strong>Collection Builder</strong>
-        </div>
-        <div className="row">
-          <span className="badge">{currentGame?.name || selectedGame}</span>
-          <button className="btn btn-ghost" onClick={logout}><LogOut size={16} /> Sair</button>
-        </div>
-      </div>
-    );
-  }
-
   function renderPageHeading(title: ReactNode, subtitle?: ReactNode, actions?: ReactNode, showBack = view !== 'dashboard') {
     return (
       <div className="page-heading">
-        {showBack ? (
-          <button className="back-link" onClick={goBack}>
-            <ArrowLeft size={15} /> Voltar
-          </button>
-        ) : null}
+        <div className="page-controls">
+          {showBack ? (
+            <button className="back-link" onClick={goBack}>
+              <ArrowLeft size={15} /> Back
+            </button>
+          ) : (
+            <button className="back-link" onClick={logout}>
+              <LogOut size={15} /> Sign out
+            </button>
+          )}
+          {showBack ? (
+            <div className="page-session">
+              <span className="badge">{currentGame?.name || selectedGame}</span>
+              <button className="btn btn-ghost" onClick={logout}><LogOut size={16} /> Sign out</button>
+            </div>
+          ) : null}
+        </div>
         <div className="stage-head">
           <div>
             <h2>{title}</h2>
@@ -506,22 +503,22 @@ export default function Home() {
     return (
       <section className="stage-card dashboard-stage">
         {renderPageHeading(
-          'O que deseja fazer?',
-          'Escolha se vai editar uma collection existente ou criar uma nova.',
+          'What do you want to do?',
+          'Choose whether to edit an existing collection or create a new one.',
           undefined,
           false
         )}
         <div className="choice-grid">
           <button className="flow-card" onClick={loadMyCollections}>
             <FileJson size={28} />
-            <strong>Acessar minhas collections</strong>
-            <span>Lista as collections disponiveis para a API key validada e abre edicao.</span>
+            <strong>Open my collections</strong>
+            <span>Lists collections available to the validated API key and opens editing.</span>
             <ChevronRight size={18} />
           </button>
           <button className="flow-card" onClick={startCreate}>
             <Plus size={28} />
-            <strong>Criar collection</strong>
-            <span>Escolha o jogo e adicione mods por ID ou URL.</span>
+            <strong>Create collection</strong>
+            <span>Choose the game and add mods by ID or URL.</span>
             <ChevronRight size={18} />
           </button>
         </div>
@@ -538,18 +535,17 @@ export default function Home() {
     return (
       <section className="stage-card collection-stage">
         {renderPageHeading(
-          'Minhas collections',
-          'Collections retornadas para a API key atual.',
+          'My collections',
+          'Collections returned for the current API key.',
           <button className="btn" onClick={loadMyCollections} disabled={myCollections.loading}>
             {myCollections.loading ? <Loader2 size={16} className="spin" /> : <Download size={16} />}
-            Atualizar
+            Refresh
           </button>
         )}
         {myCollections.error ? <div className="error">{myCollections.error}</div> : null}
-        {myCollections.data?.message ? <div className="notice">{myCollections.data.message}</div> : null}
         <div className="link-collection-panel">
           <div className="field">
-            <label className="label">Adicionar collection por link</label>
+            <label className="label">Add collection by link</label>
             <input
               className="input"
               value={collectionLinkInput}
@@ -558,41 +554,41 @@ export default function Home() {
             />
           </div>
           <div className="field">
-            <label className="label">ID da collection</label>
+            <label className="label">Collection ID</label>
             <input
               className="input"
               value={collectionIdInput}
               onChange={(event) => setCollectionIdInput(event.target.value)}
-              placeholder="Necessario para criar revisao"
+              placeholder="Required to create a revision"
             />
           </div>
           <button className="btn btn-primary" onClick={addCollectionLink} disabled={!collectionLinkInput.trim()}>
-            <Plus size={16} /> Salvar link
+            <Plus size={16} /> Save link
           </button>
         </div>
         {collectionLinkError ? <div className="error">{collectionLinkError}</div> : null}
-        {myCollections.loading ? <div className="empty"><Loader2 size={18} className="spin" /> Carregando collections...</div> : null}
+        {myCollections.loading ? <div className="empty"><Loader2 size={18} className="spin" /> Loading collections...</div> : null}
         {!myCollections.loading && collections.length ? (
           <div className="collection-list">
             {collections.map((item) => (
               <article key={item.id} className="saved-collection">
                 <div>
                   <h3>{item.title}</h3>
-                  <p>{item.description || 'Sem descricao disponivel.'}</p>
+                  <p>{item.description || 'No description available.'}</p>
                   <div className="mod-meta">
                     <span>{item.game}</span>
                     {item.revisionNumber ? <span>Revision {item.revisionNumber}</span> : null}
                     {item.status ? <span>{item.status}</span> : null}
-                    {item.editable === false ? <span>link salvo sem id</span> : null}
+                    {item.editable === false ? <span>saved link without id</span> : null}
                   </div>
                 </div>
-                <button className="btn btn-primary" disabled={item.editable === false} onClick={() => editExisting(item)}><Eye size={16} /> Editar</button>
+                <button className="btn btn-primary" disabled={item.editable === false} onClick={() => editExisting(item)}><Eye size={16} /> Edit</button>
               </article>
             ))}
           </div>
         ) : null}
         {!myCollections.loading && !collections.length && !myCollections.error ? (
-          <div className="empty">Nenhuma collection foi retornada para essa API key.</div>
+          <div className="empty">No collections were returned for this API key.</div>
         ) : null}
       </section>
     );
@@ -602,13 +598,13 @@ export default function Home() {
     return (
       <section className="stage-card">
         {renderPageHeading(
-          'Escolha o jogo',
-          'Depois disso voce adiciona mods por ID ou URL.',
+          'Choose the game',
+          'After that, add mods by ID or URL.',
           <button className="btn btn-primary" onClick={() => setView('builder')} disabled={!selectedGame}>
-            Continuar <ChevronRight size={16} />
+            Continue <ChevronRight size={16} />
           </button>
         )}
-        <input className="input" value={selectedGame} onChange={(event) => setSelectedGame(event.target.value)} placeholder="Dominio do jogo" />
+        <input className="input" value={selectedGame} onChange={(event) => setSelectedGame(event.target.value)} placeholder="Game domain" />
         <div className="game-grid large">
           {games.map((game) => (
             <button key={game.domainName} className={`game-card ${selectedGame === game.domainName ? 'active' : ''}`} onClick={() => setSelectedGame(game.domainName)}>
@@ -625,10 +621,10 @@ export default function Home() {
     return (
       <section className="stage-card builder-stage">
         {renderPageHeading(
-          editingCollection ? `Editando ${editingCollection.title}` : 'Criar collection',
-          'Adicione mods por ID ou URL, abra detalhes e selecione um ou mais arquivos.',
+          editingCollection ? `Editing ${editingCollection.title}` : 'Create collection',
+          'Add mods by ID or URL, open details, and select one or more files.',
           <button className="btn btn-primary" onClick={() => setView('publish')} disabled={!collection.length}>
-            Dados da collection <ChevronRight size={16} />
+            Collection details <ChevronRight size={16} />
           </button>
         )}
 
@@ -636,7 +632,7 @@ export default function Home() {
           <div className="form-stack">
             <div className="lookup-panel">
               <div className="field">
-                <label className="label">ID ou URL do mod</label>
+                <label className="label">Mod ID or URL</label>
                 <div className="inline-lookup">
                   <input
                     className="input"
@@ -647,7 +643,7 @@ export default function Home() {
                   />
                   <button className="btn btn-primary" onClick={openModDetails} disabled={modState.loading || !modInput.trim()}>
                     {modState.loading || filesState.loading ? <Loader2 size={16} className="spin" /> : <Eye size={16} />}
-                    Abrir detalhes
+                    Open details
                   </button>
                 </div>
               </div>
@@ -664,16 +660,16 @@ export default function Home() {
                       <span>by {selectedMod.author}</span>
                       <span>{selectedMod.category}</span>
                     </div>
-                    <p>{selectedMod.summary || 'Sem descricao resumida disponivel.'}</p>
+                    <p>{selectedMod.summary || 'No summary available.'}</p>
                   </div>
-                  <button className="icon-btn add-file-btn" title="Adicionar arquivos selecionados" onClick={addSelectedFiles} disabled={!selectedFileIds.length || filesState.loading}>
+                  <button className="icon-btn add-file-btn" title="Add selected files" onClick={addSelectedFiles} disabled={!selectedFileIds.length || filesState.loading}>
                     <Plus size={18} />
                   </button>
                 </div>
               </article>
             ) : null}
 
-            {filesState.loading ? <div className="empty"><Loader2 size={18} className="spin" /> Carregando arquivos...</div> : null}
+            {filesState.loading ? <div className="empty"><Loader2 size={18} className="spin" /> Loading files...</div> : null}
             {!filesState.loading && filesState.data?.files.length ? (
               <div className="file-groups">
                 {Object.entries(groupedFiles).map(([group, files]) => files.length ? (
@@ -687,7 +683,7 @@ export default function Home() {
                         <span className="checkbox-mark">{selectedFileIds.includes(file.id) ? <Check size={13} /> : null}</span>
                         <div>
                           <strong>{file.name}</strong>
-                          <div className="helper">Versao {file.version || '-'} - {file.uploadedAt || '-'} - {formatBytes(file.sizeBytes)}</div>
+                          <div className="helper">Version {file.version || '-'} - {file.uploadedAt || '-'} - {formatBytes(file.sizeBytes)}</div>
                           {file.description ? <div className="helper">{file.description}</div> : null}
                         </div>
                       </button>
@@ -700,16 +696,16 @@ export default function Home() {
 
           <aside className="side-panel">
             <div className="side-head">
-              <strong>Mods na collection</strong>
+              <strong>Mods in collection</strong>
               <span>{collection.length}</span>
             </div>
             <div className="field">
-              <label className="label">Filtrar mods</label>
+              <label className="label">Filter mods</label>
               <input
                 className="input compact-input"
                 value={collectionTextFilter}
                 onChange={(event) => setCollectionTextFilter(event.target.value)}
-                placeholder="Nome do mod ou arquivo"
+                placeholder="Mod or file name"
               />
             </div>
             <div className="mini-list">
@@ -729,7 +725,7 @@ export default function Home() {
                   <input
                     key={order}
                     className="order-input"
-                    aria-label={`Ordem de ${item.modName}`}
+                    aria-label={`Order for ${item.modName}`}
                     defaultValue={order}
                     onKeyDown={(event) => {
                       if (event.key !== 'Enter') return;
@@ -745,14 +741,14 @@ export default function Home() {
                   <div>
                     <strong>{item.modName}</strong>
                     <span>{item.fileName}</span>
-                    <small>Versao {item.fileVersion || '-'} - {formatBytes(item.fileSizeBytes)}</small>
+                    <small>Version {item.fileVersion || '-'} - {formatBytes(item.fileSizeBytes)}</small>
                   </div>
                   <div className="mini-actions">
-                    <button className="icon-btn" title="Remover" onClick={() => removeItem(item.localId)}><Trash2 size={15} /></button>
+                    <button className="icon-btn" title="Remove" onClick={() => removeItem(item.localId)}><Trash2 size={15} /></button>
                   </div>
                 </article>
                 );
-              }) : <div className="empty compact-empty">{collection.length ? 'Nenhum mod encontrado no filtro.' : 'Nenhum arquivo adicionado.'}</div>}
+              }) : <div className="empty compact-empty">{collection.length ? 'No mods matched the filter.' : 'No files added.'}</div>}
             </div>
           </aside>
         </div>
@@ -764,17 +760,17 @@ export default function Home() {
     return (
       <section className="stage-card publish-stage">
         {renderPageHeading(
-          'Dados da collection',
-          'Esses campos vao no manifesto enviado para a Nexus.'
+          'Collection details',
+          'These fields go into the manifest sent to Nexus.'
         )}
         <div className="publish-layout">
           <div className="form-stack">
             <div className="field">
-              <label className="label">Titulo</label>
+              <label className="label">Title</label>
               <input className="input" value={draftMeta.title} onChange={(e) => setDraftMeta({ ...draftMeta, title: e.target.value })} />
             </div>
             <div className="field">
-              <label className="label">Descricao</label>
+              <label className="label">Description</label>
               <textarea className="textarea" value={draftMeta.description} maxLength={1000} onChange={(e) => setDraftMeta({ ...draftMeta, description: e.target.value })} />
               <span className="helper">{draftMeta.description.length}/1000</span>
             </div>
@@ -785,11 +781,11 @@ export default function Home() {
                   checked={draftMeta.preserveDescription}
                   onChange={(e) => setDraftMeta({ ...draftMeta, preserveDescription: e.target.checked })}
                 />
-                <span>Nao alterar descricao atual da collection ao criar revisao</span>
+                <span>Do not change the current collection description when creating a revision</span>
               </label>
             ) : null}
             <div className="field">
-              <label className="label">Categoria</label>
+              <label className="label">Category</label>
               <select className="select" value={draftMeta.category} onChange={(e) => setDraftMeta({ ...draftMeta, category: e.target.value })}>
                 <option>Gameplay</option>
                 <option>Animation</option>
@@ -800,26 +796,26 @@ export default function Home() {
             </div>
             <div className="visibility-grid">
               <button className={`choice ${draftMeta.visibility === 'public' ? 'active' : ''}`} onClick={() => setDraftMeta({ ...draftMeta, visibility: 'public' })}>
-                <span className="radio" /> Publica <small>Qualquer pessoa pode ver</small>
+                <span className="radio" /> Public <small>Anyone can see it</small>
               </button>
               <button className={`choice ${draftMeta.visibility === 'private' ? 'active' : ''}`} onClick={() => setDraftMeta({ ...draftMeta, visibility: 'private' })}>
-                <span className="radio" /> Privada <small>Apenas voce pode ver</small>
+                <span className="radio" /> Private <small>Only you can see it</small>
               </button>
             </div>
             <div className={collectionOk ? 'success' : 'error'}>
-              {collectionOk ? 'A collection esta pronta para publicar.' : 'Adicione ao menos um arquivo valido antes de publicar.'}
+              {collectionOk ? 'The collection is ready to publish.' : 'Add at least one valid file before publishing.'}
             </div>
             <div className="stage-actions">
               <button className="btn btn-primary" onClick={publishCollection} disabled={publishState.loading || !collectionOk}>
                 {publishState.loading ? <Loader2 size={16} className="spin" /> : <UploadCloud size={16} />}
-                {editingCollection ? 'Criar revisao' : 'Publicar collection'}
+                {editingCollection ? 'Create revision' : 'Publish collection'}
               </button>
             </div>
             {publishState.error ? <div className="error">{publishState.error}</div> : null}
           </div>
           <aside className="publish-summary">
             <div className="side-head">
-              <strong>Mods na collection</strong>
+              <strong>Mods in collection</strong>
               <span>{collection.length}</span>
             </div>
             <div className="publish-mod-list">
@@ -830,11 +826,11 @@ export default function Home() {
                   <div>
                     <strong>{item.modName}</strong>
                     <span>{item.fileName}</span>
-                    <small>Versao {item.fileVersion || '-'} - {formatBytes(item.fileSizeBytes)}</small>
+                    <small>Version {item.fileVersion || '-'} - {formatBytes(item.fileSizeBytes)}</small>
                   </div>
                 </article>
               )) : (
-                <div className="empty compact-empty">Nenhum arquivo adicionado.</div>
+                <div className="empty compact-empty">No files added.</div>
               )}
             </div>
           </aside>
@@ -850,31 +846,31 @@ export default function Home() {
     return (
       <section className="stage-card success-stage">
         {renderPageHeading(
-          editingCollection ? 'Revisao criada' : 'Collection publicada',
-          'Publicacao concluida e pronta para revisao.'
+          editingCollection ? 'Revision created' : 'Collection published',
+          'Publishing is complete and ready for review.'
         )}
         <div className="success-content">
           <div className="big-check"><Check size={58} /></div>
-          <h2>{editingCollection ? 'Revisao criada com sucesso!' : 'Collection publicada com sucesso!'}</h2>
-          <p>Os dados foram enviados com descricao e arquivos selecionados no manifesto.</p>
+          <h2>{editingCollection ? 'Revision created successfully!' : 'Collection published successfully!'}</h2>
+          <p>The data was sent with the selected description and files in the manifest.</p>
         <article className="published-card">
           <img src={draft.coverImage || '/mod-placeholder.svg'} alt={draft.title} />
           <div>
             <h3>{draft.title}</h3>
-            <p>{draft.description || 'Sem descricao.'}</p>
+            <p>{draft.description || 'No description.'}</p>
             <div className="mod-meta">
-              <span>{collection.length} arquivos</span>
+              <span>{collection.length} files</span>
               {result?.revisionId ? <span>Revision {result.revisionId}</span> : null}
             </div>
           </div>
         </article>
         <div className="copy-url">
           <span>{url}</span>
-          <button className="icon-btn" title="Copiar" onClick={() => navigator.clipboard?.writeText(url)}><Copy size={16} /></button>
+          <button className="icon-btn" title="Copy" onClick={() => navigator.clipboard?.writeText(url)}><Copy size={16} /></button>
         </div>
         <div className="stage-actions center">
-          <button className="btn" onClick={() => setView('builder')}>Continuar editando</button>
-          <button className="btn btn-primary" onClick={startCreate}>Nova collection</button>
+          <button className="btn" onClick={() => setView('builder')}>Keep editing</button>
+          <button className="btn btn-primary" onClick={startCreate}>New collection</button>
         </div>
         </div>
       </section>
@@ -895,7 +891,6 @@ export default function Home() {
 
   return (
     <main className="app-shell no-chrome">
-      {renderTopbar()}
       {renderView()}
     </main>
   );

@@ -5,6 +5,8 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "cf:build": "opennextjs-cloudflare build",
+    "cf:deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
     "start": "next start",
     "lint": "next lint"
   },
@@ -12,11 +14,14 @@
     "@types/node": "latest",
     "@types/react": "latest",
     "@types/react-dom": "latest",
+    "lucide-react": "latest",
     "next": "latest",
     "react": "latest",
     "react-dom": "latest",
-    "typescript": "latest",
-    "lucide-react": "latest"
+    "typescript": "latest"
   },
-  "devDependencies": {}
+  "devDependencies": {
+    "@opennextjs/cloudflare": "^1.20.1",
+    "wrangler": "^4.105.0"
+  }
 }

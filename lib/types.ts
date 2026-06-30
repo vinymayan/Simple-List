@@ -55,6 +55,7 @@ export type CollectionDraft = {
   id?: string;
   slug?: string;
   title: string;
+  summary?: string;
   description: string;
   preserveDescription?: boolean;
   category: string;

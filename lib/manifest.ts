@@ -55,6 +55,7 @@ function manifestMods(draft: CollectionDraft) {
 
 export function buildCollectionManifest(draft: CollectionDraft, author = 'Create List') {
   const description = cleanText(draft.description);
+  const summary = cleanText(draft.summary);
 
   return {
     info: {
@@ -62,6 +63,7 @@ export function buildCollectionManifest(draft: CollectionDraft, author = 'Create
       authorUrl: '',
       name: cleanText(draft.title),
       description,
+      summary: summary || null,
       installInstructions: '',
       domainName: draft.game,
       gameVersions: []
@@ -87,7 +89,7 @@ function nexusManifest(draft: CollectionDraft, author = 'Create List') {
       author_url: null,
       name: cleanText(draft.title),
       description: cleanText(draft.description) || null,
-      summary: cleanText(draft.description) ? cleanText(draft.description).slice(0, 255) : null,
+      summary: cleanText(draft.summary) || null,
       domain_name: draft.game,
       game_versions: null
     },

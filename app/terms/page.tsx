@@ -2,17 +2,17 @@ export default function TermsPage() {
   return (
     <main className="legal-page">
       <section className="legal-card">
-        <a href="/">Back to Simple Collection Manager</a>
-        <h1>Termos de servico</h1>
+        <a className="back-link legal-back-link" href="/">&larr; Back</a>
+        <h1>Terms of Service</h1>
         <p>
-          Viny Mods fornece o Simple Collection Manager como uma ferramenta independente para organizar collections e
-          facilitar fluxos de uso com a API da Nexus Mods.
+          Viny Mods provides Simple Collection Manager as an independent tool for organizing collections and supporting
+          workflows that use the Nexus Mods API.
         </p>
         <p>
-          O usuario e responsavel pelo uso da propria API key, pelos dados enviados e por cumprir os termos de servicos
-          externos acessados pelo app.
+          You are responsible for how you use your API key, the data you submit, and your compliance with the terms of
+          any external services accessed through the app.
         </p>
-        <p>Este projeto nao e afiliado, endossado ou operado pela Nexus Mods.</p>
+        <p>This project is not affiliated with, endorsed by, or operated by Nexus Mods.</p>
       </section>
     </main>
   );

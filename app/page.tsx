@@ -5,7 +5,9 @@ import type { ReactNode } from 'react';
 import {
   ArrowLeft,
   Check,
+  ChevronDown,
   ChevronRight,
+  X,
   Copy,
   Eye,
   ExternalLink,
@@ -29,10 +31,21 @@ type ApiState<T> = {
   data?: T;
 };
 
-type View = 'login' | 'dashboard' | 'my-collections' | 'game' | 'builder' | 'publish' | 'success';
+type View = 'login' | 'dashboard' | 'my-collections' | 'game' | 'builder' | 'publish' | 'success' | 'terms' | 'privacy';
+
+type OpenedModDetails = {
+  key: string;
+  input: string;
+  mod: ModSummary;
+  files: ModFile[];
+  selectedFileIds: number[];
+  collapsed?: boolean;
+  error?: string;
+};
 
 const DEFAULT_GAME = 'skyrimspecialedition';
 const SAVED_COLLECTIONS_KEY = 'ncb_saved_collections';
+const COLLECTION_CATEGORIES = ['Total Overhaul', 'Themed', 'Vanilla Plus', 'Essentials', 'Miscellaneous'];
 
 function HydrationSafeIcon({ children }: { children: ReactNode }) {
   const [mounted, setMounted] = useState(false);
@@ -121,10 +134,18 @@ function parseModId(value: string) {
   return null;
 }
 
+function parseModInputs(value: string) {
+  return value
+    .split(',')
+    .map((input) => input.trim())
+    .filter(Boolean)
+    .map((input) => ({ input, parsed: parseModId(input) }));
+}
+
 function parseCollectionUrl(value: string) {
-  const match = value.match(/next\.nexusmods\.com\/([^/]+)\/collections\/([^/?#]+)/i);
+  const match = value.trim().match(/(?:next\.nexusmods\.com\/([^/]+)|(?:www\.)?nexusmods\.com\/games\/([^/]+))\/collections\/([^/?#]+)/i);
   if (!match) return null;
-  return { game: match[1].toLowerCase(), slug: decodeURIComponent(match[2]) };
+  return { game: (match[1] || match[2]).toLowerCase(), slug: decodeURIComponent(match[3]) };
 }
 
 export default function Home() {
@@ -139,22 +160,22 @@ export default function Home() {
   const [savedCollections, setSavedCollections] = useState<UserCollection[]>([]);
   const [myCollections, setMyCollections] = useState<ApiState<{ collections: UserCollection[]; source: string; message?: string }>>({ loading: false, error: '' });
   const [collectionLinkInput, setCollectionLinkInput] = useState('');
-  const [collectionIdInput, setCollectionIdInput] = useState('');
   const [collectionLinkError, setCollectionLinkError] = useState('');
   const [myCollectionTextFilter, setMyCollectionTextFilter] = useState('');
   const [myCollectionGameFilter, setMyCollectionGameFilter] = useState('all');
   const [modInput, setModInput] = useState('');
   const [modState, setModState] = useState<ApiState<{ mod: ModSummary }>>({ loading: false, error: '' });
   const [filesState, setFilesState] = useState<ApiState<{ files: ModFile[] }>>({ loading: false, error: '' });
-  const [selectedFileIds, setSelectedFileIds] = useState<number[]>([]);
+  const [openedMods, setOpenedMods] = useState<OpenedModDetails[]>([]);
   const [collection, setCollection] = useState<CollectionItem[]>([]);
   const [collectionTextFilter, setCollectionTextFilter] = useState('');
   const [draggedItemId, setDraggedItemId] = useState<string | null>(null);
   const [draftMeta, setDraftMeta] = useState({
     title: 'My Collection',
+    summary: '',
     description: '',
     preserveDescription: false,
-    category: 'Gameplay',
+    category: COLLECTION_CATEGORIES[0],
     visibility: 'public' as 'public' | 'private'
   });
   const [publishState, setPublishState] = useState<ApiState<PublishResult>>({ loading: false, error: '' });
@@ -189,8 +210,7 @@ export default function Home() {
 
   const currentGame = useMemo(() => games.find((game) => game.domainName === selectedGame), [games, selectedGame]);
   const featuredMod = FEATURED_MODS[featuredIndex];
-  const selectedMod = modState.data?.mod || null;
-  const groupedFiles = groupFiles(filesState.data?.files || []);
+  const lookupLoading = modState.loading || filesState.loading;
   const collectionOk = collection.length > 0 && collection.every((item) => item.status === 'ok' && item.fileId);
   const filteredCollection = collection.filter((item) => {
     const needle = collectionTextFilter.trim().toLowerCase();
@@ -202,6 +222,7 @@ export default function Home() {
     id: editingCollection?.editable === false ? undefined : editingCollection?.id,
     slug: editingCollection?.slug,
     title: draftMeta.title,
+    summary: draftMeta.summary,
     description: draftMeta.description,
     preserveDescription: editingCollection ? draftMeta.preserveDescription : false,
     category: draftMeta.category,
@@ -239,12 +260,13 @@ export default function Home() {
     setModInput('');
     setModState({ loading: false, error: '' });
     setFilesState({ loading: false, error: '' });
-    setSelectedFileIds([]);
+    setOpenedMods([]);
     setDraftMeta({
       title: 'My Collection',
+      summary: '',
       description: '',
       preserveDescription: false,
-      category: 'Gameplay',
+      category: COLLECTION_CATEGORIES[0],
       visibility: 'public'
     });
     setView('game');
@@ -269,22 +291,20 @@ export default function Home() {
   function addCollectionLink() {
     const parsed = parseCollectionUrl(collectionLinkInput);
     if (!parsed) {
-      setCollectionLinkError('Enter a collection link in the format next.nexusmods.com/{game}/collections/{slug}.');
+      setCollectionLinkError('Enter a collection link in the format nexusmods.com/games/{game}/collections/{slug}.');
       return;
     }
 
-    const id = collectionIdInput.trim();
     saveKnownCollection({
-      id: id || `link:${parsed.game}:${parsed.slug}`,
+      id: `link:${parsed.game}:${parsed.slug}`,
       slug: parsed.slug,
       title: parsed.slug.replace(/[-_]+/g, ' '),
       description: '',
       game: parsed.game,
       url: collectionLinkInput.trim(),
-      editable: Boolean(id)
+      editable: false
     });
     setCollectionLinkInput('');
-    setCollectionIdInput('');
     setCollectionLinkError('');
   }
 
@@ -304,62 +324,117 @@ export default function Home() {
     setSelectedGame(collectionInfo.game || DEFAULT_GAME);
     setDraftMeta({
       title: collectionInfo.title || 'My Collection',
+      summary: collectionInfo.description || '',
       description: collectionInfo.description || '',
       preserveDescription: true,
-      category: 'Gameplay',
+      category: COLLECTION_CATEGORIES[0],
       visibility: 'public'
     });
     setCollection(collectionInfo.items || []);
     setModInput('');
     setModState({ loading: false, error: '' });
     setFilesState({ loading: false, error: '' });
-    setSelectedFileIds([]);
+    setOpenedMods([]);
     setView('builder');
   }
 
   async function openModDetails() {
-    const parsed = parseModId(modInput);
-    if (!parsed) {
-      setModState({ loading: false, error: 'Enter a numeric ID or a Nexus Mods URL.' });
+    const entries = parseModInputs(modInput);
+    if (!entries.length) {
+      setModState({ loading: false, error: 'Enter one or more numeric IDs or Nexus Mods URLs.' });
       return;
     }
 
-    const game = parsed.game || selectedGame;
-    setSelectedGame(game);
+    const invalid = entries.find((entry) => !entry.parsed);
+    if (invalid) {
+      setModState({ loading: false, error: `Could not read "${invalid.input}". Separate IDs or URLs with commas.` });
+      return;
+    }
+
+    const requests = entries.map((entry) => {
+      const parsed = entry.parsed!;
+      return {
+        input: entry.input,
+        game: parsed.game || selectedGame,
+        modId: parsed.modId
+      };
+    });
+
+    setSelectedGame(requests[0].game);
     setModState({ loading: true, error: '' });
     setFilesState({ loading: true, error: '' });
-    setSelectedFileIds([]);
 
-    try {
-      const modResult = await api<{ mod: ModSummary }>(`/api/mods/${encodeURIComponent(game)}/${parsed.modId}`);
-      setModState({ loading: false, error: '', data: modResult });
-      const fileResult = await api<{ files: ModFile[] }>(`/api/mods/${encodeURIComponent(game)}/${parsed.modId}/files`);
-      setFilesState({ loading: false, error: '', data: fileResult });
+    const results: OpenedModDetails[] = await Promise.all(requests.map(async (request): Promise<OpenedModDetails> => {
+      const modResult = await api<{ mod: ModSummary }>(`/api/mods/${encodeURIComponent(request.game)}/${request.modId}`);
+      const fileResult = await api<{ files: ModFile[] }>(`/api/mods/${encodeURIComponent(request.game)}/${request.modId}/files`);
       const mainFiles = fileResult.files.filter((file) => String(file.category).toUpperCase().includes('MAIN'));
-      setSelectedFileIds((mainFiles.length ? mainFiles : fileResult.files.slice(0, 1)).map((file) => file.id));
-    } catch (error: any) {
-      const message = error.message || 'Could not open mod details.';
-      setModState((state) => ({ ...state, loading: false, error: message }));
-      setFilesState({ loading: false, error: message });
-    }
+      return {
+        key: `${modResult.mod.game}-${modResult.mod.modId}`,
+        input: request.input,
+        mod: modResult.mod,
+        files: fileResult.files,
+        selectedFileIds: (mainFiles.length ? mainFiles : fileResult.files.slice(0, 1)).map((file) => file.id)
+      };
+    }).map((promise): Promise<OpenedModDetails> => promise.catch((error: any) => ({
+      key: `error-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+      input: '',
+      mod: {
+        game: selectedGame,
+        modId: 0,
+        name: 'Unavailable mod',
+        author: '',
+        summary: '',
+        thumbnail: '',
+        version: '',
+        category: '',
+        downloads: 0,
+        endorsements: 0,
+        updatedAt: '',
+        available: false
+      },
+      files: [],
+      selectedFileIds: [],
+      error: error.message || 'Could not open mod details.'
+    }))));
+
+    const errors = results.filter((result) => result.error).map((result) => result.error);
+    const loaded = results.filter((result) => !result.error);
+    setOpenedMods((items) => [
+      ...items.filter((item) => !loaded.some((result) => result.key === item.key)),
+      ...loaded
+    ]);
+    setModInput('');
+    setModState({ loading: false, error: errors.join(' ') });
+    setFilesState({ loading: false, error: '' });
   }
 
-  function toggleFile(fileId: number) {
-    setSelectedFileIds((ids) => ids.includes(fileId) ? ids.filter((id) => id !== fileId) : [...ids, fileId]);
+  function toggleFile(modKey: string, fileId: number) {
+    setOpenedMods((items) => items.map((item) => item.key === modKey ? {
+      ...item,
+      selectedFileIds: item.selectedFileIds.includes(fileId)
+        ? item.selectedFileIds.filter((id) => id !== fileId)
+        : [...item.selectedFileIds, fileId]
+    } : item));
   }
 
-  function addSelectedFiles() {
-    if (!selectedMod || !filesState.data?.files.length) return;
-    const selectedFiles = filesState.data.files.filter((file) => selectedFileIds.includes(file.id));
+  function addSelectedFiles(modKey: string) {
+    const openedMod = openedMods.find((item) => item.key === modKey);
+    if (!openedMod || !openedMod.files.length) return;
+    const selectedFiles = openedMod.files.filter((file) => openedMod.selectedFileIds.includes(file.id));
     if (!selectedFiles.length) return;
     setCollection((items) => [
       ...items,
-      ...selectedFiles.map((file, index) => createCollectionItem(selectedMod, file, items.length + index + 1))
+      ...selectedFiles.map((file, index) => createCollectionItem(openedMod.mod, file, items.length + index + 1))
     ]);
-    setSelectedFileIds([]);
-    setModInput('');
-    setModState({ loading: false, error: '' });
-    setFilesState({ loading: false, error: '' });
+    setOpenedMods((items) => items.map((item) => item.key === modKey ? { ...item, selectedFileIds: [] } : item));
+  }
+
+  function toggleOpenedMod(modKey: string) {
+    setOpenedMods((items) => items.map((item) => item.key === modKey ? { ...item, collapsed: !item.collapsed } : item));
+  }
+
+  function closeOpenedMod(modKey: string) {
+    setOpenedMods((items) => items.filter((item) => item.key !== modKey));
   }
 
   function removeItem(localId: string) {
@@ -436,10 +511,6 @@ export default function Home() {
     }
   }
 
-  function openFeaturedMod() {
-    window.open(featuredMod.url, '_blank', 'noopener,noreferrer');
-  }
-
   function moveFeaturedMod(direction: -1 | 1) {
     setFeaturedIndex((index) => (index + direction + FEATURED_MODS.length) % FEATURED_MODS.length);
   }
@@ -450,21 +521,18 @@ export default function Home() {
         <section className="stage-card narrow-stage login-only api-login-stage">
           <article
             className="featured-mod-panel"
-            role="link"
-            tabIndex={0}
-            onClick={openFeaturedMod}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter' || event.key === ' ') {
-                event.preventDefault();
-                openFeaturedMod();
-              }
-            }}
           >
-            <div className="featured-mod-art" style={{ backgroundImage: `url(${featuredMod.cover})` }} />
+            <a
+              className="featured-mod-art"
+              href={featuredMod.url}
+              target="_blank"
+              rel="noreferrer"
+              aria-label={`Open ${featuredMod.name} on Nexus Mods`}
+              style={{ backgroundImage: `url(${featuredMod.cover})` }}
+            />
             <div className="featured-mod-copy">
               <div className="featured-kicker"><Star size={16} /> Featured mod</div>
               <h2>{featuredMod.name}</h2>
-              <strong>{featuredMod.description}</strong>
               <p>{featuredMod.details}</p>
               <div className="featured-tags">
                 <span>{featuredMod.game}</span>
@@ -481,16 +549,18 @@ export default function Home() {
 
           <aside className="api-auth-panel">
             <div className="api-brand">
-              <img src="/logo.svg" alt="" />
+              <div className="api-logo-mark">
+                <img src="/logo.svg" alt="" />
+                <span className="api-accent" />
+              </div>
               <div>
                 <h1>Simple Collection Manager</h1>
               </div>
             </div>
-            <div className="api-accent" />
 
             <div className="api-form-copy">
               <h2>Validate your Nexus API Key</h2>
-              <p>Use your personal API key to search mods, browse files, and publish collections.</p>
+              <p>Use your personal API key to browse files, create/edit and publish collections.</p>
             </div>
 
             <div className="field">
@@ -513,22 +583,26 @@ export default function Home() {
             </button>
             {auth.error ? <div className="error">{auth.error}</div> : null}
 
-            <div className="api-security-note">
-              <ShieldCheck size={22} />
-              <ul>
-                <li>Stored securely for this session</li>
-                <li>Used only to access your Nexus account</li>
-                <li>You can revoke it anytime on Nexus Mods</li>
-              </ul>
-            </div>
-
             <a className="api-key-link" href="https://www.nexusmods.com/users/myaccount?tab=api%20access" target="_blank" rel="noreferrer">
               Need an API key? <span>Get it from Nexus Mods</span> <ExternalLink size={16} />
             </a>
 
-            <p className="api-disclaimer">
-              Simple Collection Manager is an independent project and is not affiliated with, endorsed by, or connected to Nexus Mods.
-            </p>
+            <div className="external-links">
+              <a href="https://www.patreon.com/c/xyzeroyx" target="_blank" rel="noreferrer">
+                <img src="/patreon.svg" alt="" />
+                Support the project
+              </a>
+              <a href="https://www.youtube.com/@vinyts3" target="_blank" rel="noreferrer" aria-label="YouTube">
+                <img src="/youtube.svg" alt="" />
+              </a>
+              <a href="https://www.nexusmods.com/profile/xYZeroYx" target="_blank" rel="noreferrer" aria-label="Nexus Mods">
+                <img src="/nexus.svg" alt="" />
+              </a>
+            </div>
+            <div className="api-legal-links">
+              <a href="/terms">Terms of Service</a>
+              <a href="/privacy">Privacy Policy</a>
+            </div>
           </aside>
         </section>
       </main>
@@ -635,20 +709,11 @@ export default function Home() {
                 className="input"
                 value={collectionLinkInput}
                 onChange={(event) => setCollectionLinkInput(event.target.value)}
-                placeholder="https://next.nexusmods.com/skyrimspecialedition/collections/slug"
-              />
-            </div>
-            <div className="field">
-              <label className="label">Collection ID</label>
-              <input
-                className="input"
-                value={collectionIdInput}
-                onChange={(event) => setCollectionIdInput(event.target.value)}
-                placeholder="Required to create a revision"
+                placeholder="https://www.nexusmods.com/games/skyrimspecialedition/collections/ebe5q6"
               />
             </div>
             <button className="btn btn-primary" onClick={addCollectionLink} disabled={!collectionLinkInput.trim()}>
-              <Plus size={16} /> Save link
+              <Plus size={16} /> Add collection
             </button>
           </div>
           {collectionLinkError ? <div className="error">{collectionLinkError}</div> : null}
@@ -715,7 +780,6 @@ export default function Home() {
           <div className="game-grid large">
             {games.map((game) => (
               <button key={game.domainName} className={`game-card ${selectedGame === game.domainName ? 'active' : ''}`} onClick={() => setSelectedGame(game.domainName)}>
-                <img src={game.image} alt={game.name} />
                 <span>{game.name}</span>
               </button>
             ))}
@@ -747,11 +811,11 @@ export default function Home() {
                       className="input"
                       value={modInput}
                       onChange={(event) => setModInput(event.target.value)}
-                      placeholder="https://www.nexusmods.com/skyrimspecialedition/mods/123 ou 123"
+                      placeholder="123, 456 or https://www.nexusmods.com/skyrimspecialedition/mods/123"
                       onKeyDown={(event) => event.key === 'Enter' && openModDetails()}
                     />
-                    <button className="btn btn-primary" onClick={openModDetails} disabled={modState.loading || !modInput.trim()}>
-                      {modState.loading || filesState.loading ? <Loader2 size={16} className="spin" /> : <Eye size={16} />}
+                    <button className="btn btn-primary" onClick={openModDetails} disabled={lookupLoading || !modInput.trim()}>
+                      {lookupLoading ? <Loader2 size={16} className="spin" /> : <Eye size={16} />}
                       Open details
                     </button>
                   </div>
@@ -759,48 +823,76 @@ export default function Home() {
                 {modState.error ? <div className="error">{modState.error}</div> : null}
               </div>
 
-              {selectedMod ? (
-                <article className="mod-detail-panel">
-                  <img src={selectedMod.thumbnail || '/mod-placeholder.svg'} alt={selectedMod.name} />
-                  <div className="mod-detail-copy">
-                    <div>
-                      <h3>{selectedMod.name}</h3>
-                      <div className="mod-meta">
-                        <span>by {selectedMod.author}</span>
-                        <span>{selectedMod.category}</span>
-                      </div>
-                      <p>{selectedMod.summary || 'No summary available.'}</p>
-                    </div>
-                    <button className="icon-btn add-file-btn" title="Add selected files" onClick={addSelectedFiles} disabled={!selectedFileIds.length || filesState.loading}>
-                      <Plus size={18} />
-                    </button>
-                  </div>
-                </article>
-              ) : null}
-
-              {filesState.loading ? <div className="empty"><Loader2 size={18} className="spin" /> Loading files...</div> : null}
-              {!filesState.loading && filesState.data?.files.length ? (
-                <div className="file-groups">
-                  {Object.entries(groupedFiles).map(([group, files]) => files.length ? (
-                    <details className="file-group" key={group} open={group !== 'OLD_VERSION'}>
-                      <summary>
-                        <span>{groupTitle(group)}</span>
-                        <small>{files.length}</small>
-                      </summary>
-                      {files.map((file) => (
-                        <button key={file.id} className={`file-option ${selectedFileIds.includes(file.id) ? 'active' : ''}`} onClick={() => toggleFile(file.id)}>
-                          <span className="checkbox-mark">{selectedFileIds.includes(file.id) ? <Check size={13} /> : null}</span>
-                          <div>
-                            <strong>{file.name}</strong>
-                            <div className="helper">Version {file.version || '-'} - {file.uploadedAt || '-'} - {formatBytes(file.sizeBytes)}</div>
-                            {file.description ? <div className="helper">{file.description}</div> : null}
+              {lookupLoading ? <div className="empty"><Loader2 size={18} className="spin" /> Loading mod details...</div> : null}
+              {openedMods.map((openedMod) => {
+                const groupedOpenedFiles = groupFiles(openedMod.files);
+                return (
+                  <article className="opened-mod-panel" key={openedMod.key}>
+                    <div className="mod-detail-panel">
+                      <img src={openedMod.mod.thumbnail || '/mod-placeholder.svg'} alt={openedMod.mod.name} />
+                      <div className="mod-detail-copy">
+                        <div>
+                          <h3>{openedMod.mod.name}</h3>
+                          <div className="mod-meta">
+                            <span>by {openedMod.mod.author}</span>
+                            <span>{openedMod.mod.category}</span>
                           </div>
-                        </button>
-                      ))}
-                    </details>
-                  ) : null)}
-                </div>
-              ) : null}
+                          <p>{openedMod.mod.summary || 'No summary available.'}</p>
+                        </div>
+                        <div className="mod-detail-actions">
+                          <button
+                            className="icon-btn add-file-btn"
+                            title="Add selected files"
+                            onClick={() => addSelectedFiles(openedMod.key)}
+                            disabled={!openedMod.selectedFileIds.length}
+                          >
+                            <Plus size={18} />
+                          </button>
+                          <button
+                            className="icon-btn"
+                            title={openedMod.collapsed ? 'Show files' : 'Hide files'}
+                            onClick={() => toggleOpenedMod(openedMod.key)}
+                          >
+                            {openedMod.collapsed ? <ChevronRight size={18} /> : <ChevronDown size={18} />}
+                          </button>
+                          <button
+                            className="icon-btn"
+                            title="Close mod"
+                            onClick={() => closeOpenedMod(openedMod.key)}
+                          >
+                            <X size={18} />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    {!openedMod.collapsed ? <div className="file-groups">
+                      {Object.entries(groupedOpenedFiles).map(([group, files]) => files.length ? (
+                        <details className="file-group" key={group} open={group !== 'OLD_VERSION'}>
+                          <summary>
+                            <span>{groupTitle(group)}</span>
+                            <small>{files.length}</small>
+                          </summary>
+                          {files.map((file) => (
+                            <button
+                              key={file.id}
+                              className={`file-option ${openedMod.selectedFileIds.includes(file.id) ? 'active' : ''}`}
+                              onClick={() => toggleFile(openedMod.key, file.id)}
+                            >
+                              <span className="checkbox-mark">{openedMod.selectedFileIds.includes(file.id) ? <Check size={13} /> : null}</span>
+                              <div>
+                                <strong>{file.name}</strong>
+                                <div className="helper">Version {file.version || '-'} - {file.uploadedAt || '-'} - {formatBytes(file.sizeBytes)}</div>
+                                {file.description ? <div className="helper">{file.description}</div> : null}
+                              </div>
+                            </button>
+                          ))}
+                        </details>
+                      ) : null)}
+                    </div> : null}
+                  </article>
+                );
+              })}
             </div>
 
             <aside className="side-panel">
@@ -881,6 +973,17 @@ export default function Home() {
                 <input className="input" value={draftMeta.title} onChange={(e) => setDraftMeta({ ...draftMeta, title: e.target.value })} />
               </div>
               <div className="field">
+                <label className="label">Summary</label>
+                <input
+                  className="input"
+                  value={draftMeta.summary}
+                  maxLength={255}
+                  onChange={(e) => setDraftMeta({ ...draftMeta, summary: e.target.value })}
+                  placeholder="Short collection summary"
+                />
+                <span className="helper">{draftMeta.summary.length}/255</span>
+              </div>
+              <div className="field">
                 <label className="label">Description</label>
                 <textarea className="textarea" value={draftMeta.description} maxLength={1000} onChange={(e) => setDraftMeta({ ...draftMeta, description: e.target.value })} />
                 <span className="helper">{draftMeta.description.length}/1000</span>
@@ -898,11 +1001,7 @@ export default function Home() {
               <div className="field">
                 <label className="label">Category</label>
                 <select className="select" value={draftMeta.category} onChange={(e) => setDraftMeta({ ...draftMeta, category: e.target.value })}>
-                  <option>Gameplay</option>
-                  <option>Animation</option>
-                  <option>Combat</option>
-                  <option>Visuals</option>
-                  <option>Utilities</option>
+                  {COLLECTION_CATEGORIES.map((category) => <option key={category}>{category}</option>)}
                 </select>
               </div>
               <div className="visibility-grid">
@@ -991,6 +1090,48 @@ export default function Home() {
     );
   }
 
+  function renderLegal(kind: 'terms' | 'privacy') {
+    const isTerms = kind === 'terms';
+
+    return (
+      <section className="stage-card legal-stage">
+        {renderPageHeading(
+          isTerms ? 'Terms of Service' : 'Privacy Policy',
+          isTerms ? 'Usage terms for Simple Collection Manager.' : 'How the app handles your session and Nexus API key.'
+        )}
+        <div className="stage-scroll">
+          <article className="legal-card in-app">
+            {isTerms ? (
+              <>
+                <p>
+                  Viny Mods provides Simple Collection Manager as an independent tool for organizing collections and
+                  supporting workflows that use the Nexus Mods API.
+                </p>
+                <p>
+                  You are responsible for how you use your API key, the data you submit, and your compliance with the
+                  terms of any external services accessed through the app.
+                </p>
+                <p>This project is not affiliated with, endorsed by, or operated by Nexus Mods.</p>
+              </>
+            ) : (
+              <>
+                <p>
+                  The API key you provide is used only to validate your session and perform the actions you request inside
+                  the app.
+                </p>
+                <p>
+                  The key is not stored in browser localStorage. It is kept in an encrypted HttpOnly cookie for the
+                  session configured by the application.
+                </p>
+                <p>Viny Mods does not sell personal data and does not represent Nexus Mods.</p>
+              </>
+            )}
+          </article>
+        </div>
+      </section>
+    );
+  }
+
   function renderSidebar() {
     const createActive = view === 'dashboard' || view === 'game' || view === 'builder' || view === 'publish' || view === 'success';
     const manageActive = view === 'my-collections';
@@ -1019,8 +1160,20 @@ export default function Home() {
         </section>
         <div className="sidebar-footer">
           <span>Viny Mods</span>
-          <a href="/terms">Termos de servico</a>
-          <a href="/privacy">Politica de privacidade</a>
+          <div className="sidebar-social-links">
+            <a href="https://www.patreon.com/c/xyzeroyx" target="_blank" rel="noreferrer" aria-label="Support the project on Patreon">
+              <img src="/patreon.svg" alt="" />
+            </a>
+            <a href="https://www.youtube.com/@vinyts3" target="_blank" rel="noreferrer" aria-label="YouTube">
+              <img src="/youtube.svg" alt="" />
+            </a>
+            <a href="https://www.nexusmods.com/profile/xYZeroYx" target="_blank" rel="noreferrer" aria-label="Nexus Mods">
+              <img src="/nexus.svg" alt="" />
+            </a>
+          </div>
+          <a href="https://www.patreon.com/c/xyzeroyx" target="_blank" rel="noreferrer">Support the project</a>
+          <button type="button" onClick={() => setView('terms')}>Terms of Service</button>
+          <button type="button" onClick={() => setView('privacy')}>Privacy Policy</button>
         </div>
       </aside>
     );
@@ -1033,6 +1186,8 @@ export default function Home() {
     if (view === 'builder') return renderBuilder();
     if (view === 'publish') return renderPublish();
     if (view === 'success') return renderSuccess();
+    if (view === 'terms') return renderLegal('terms');
+    if (view === 'privacy') return renderLegal('privacy');
     return null;
   }
 

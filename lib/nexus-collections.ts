@@ -49,7 +49,7 @@ function normalizeCollectionList(raw: any): UserCollection[] {
 }
 
 function collectionSummary(draft: CollectionDraft) {
-  return draft.description.trim().slice(0, 255) || draft.title.trim().slice(0, 255);
+  return (draft.summary || '').trim().slice(0, 255) || draft.title.trim().slice(0, 255);
 }
 
 function collectionCategoryId() {
@@ -304,7 +304,7 @@ export async function listUserCollections(apiKey: string): Promise<{ collections
           id: 'mock-collection-1',
           slug: 'mock-combat-pack',
           title: 'Mock Combat Pack',
-          description: 'Collection de exemplo para testar o fluxo de edicao.',
+          description: 'Example collection for testing the edit flow.',
           game: 'skyrimspecialedition',
           revisionId: 'mock-rev-1',
           revisionNumber: 1,

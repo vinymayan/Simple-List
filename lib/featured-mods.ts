@@ -1,52 +1,32 @@
 export const FEATURED_MODS = [
   {
-    name: 'Quick Swap',
-    description: 'Instant weapon switching without breaking your combat flow.',
-    details: 'Swap weapons immediately while keeping your current animation flow intact and your next attack ready.',
+    name: 'NPC Visual Editor - NVE',
+    description: 'Change NPC visuals in real time and create presets for replacers without touching stats.',
+    details: 'Lets you change NPC visuals in realtime, create presets, and switch between different replacers in one click while avoiding xEdit conflict management.',
     author: 'Viny',
     game: 'Skyrim Special Edition',
-    category: 'Gameplay',
-    cover: 'https://images.unsplash.com/photo-1615412704911-55d589229864?q=80&w=1600&auto=format&fit=crop',
-    url: 'https://www.nexusmods.com/skyrimspecialedition/mods/1740'
+    category: 'Utilities',
+    cover: '/featured-nve.jpg',
+    url: 'https://www.nexusmods.com/skyrimspecialedition/mods/176063'
   },
   {
-    name: 'True Directional Movement',
-    description: 'Modern third-person movement, camera behavior, and target lock support.',
-    details: 'A smoother movement foundation for action-oriented Skyrim setups.',
-    author: 'Ersh',
-    game: 'Skyrim Special Edition',
-    category: 'Gameplay',
-    cover: 'https://images.unsplash.com/photo-1518709268805-4e9042af2176?q=80&w=1600&auto=format&fit=crop',
-    url: 'https://www.nexusmods.com/skyrimspecialedition/mods/2580'
-  },
-  {
-    name: 'Precision Combat Collisions',
-    description: 'Accurate hit collision for melee combat, spells, and projectiles.',
-    details: 'Makes combat feel sharper by matching contact to weapons and animation timing.',
-    author: 'DServant',
+    name: 'Dodge for all',
+    description: 'Adds dodge support for the player and NPCs in first and third person.',
+    details: 'Gives everyone dodge functionality with first-person and third-person support, dash up, custom iframe, NPC dodge behavior, and player dodge input support.',
+    author: 'Sigerious - ToyzFX - minemiz - BF001 - Viny',
     game: 'Skyrim Special Edition',
     category: 'Combat',
-    cover: 'https://images.unsplash.com/photo-1604079628040-94301bb21b91?q=80&w=1600&auto=format&fit=crop',
-    url: 'https://www.nexusmods.com/skyrimspecialedition/mods/9910'
+    cover: '/featured-dodge-for-all.jpg',
+    url: 'https://www.nexusmods.com/skyrimspecialedition/mods/174544'
   },
   {
-    name: 'Eclipse Combat Animations',
-    description: 'Fast-paced Nordic combat animations for sword, axe, mace, and dual wield.',
-    details: 'A compact animation set built for responsive weapon flow.',
-    author: 'VinyZero',
+    name: 'Directional Movement Keys - DMK',
+    description: 'Maps player and NPC movement directions for OAR conditions and related systems.',
+    details: 'Provides movement mapping for player and NPCs plus camera movement tracking, allowing directional data to be used in OAR conditions and other gameplay setups.',
+    author: 'Viny',
     game: 'Skyrim Special Edition',
-    category: 'Animation',
-    cover: 'https://images.unsplash.com/photo-1533929736458-ca588d08c8be?q=80&w=1600&auto=format&fit=crop',
-    url: 'https://www.nexusmods.com/skyrimspecialedition/mods/3301'
-  },
-  {
-    name: 'Ultimate Combat SE',
-    description: 'Expanded enemy AI, timed blocks, and stronger combat behavior.',
-    details: 'A classic combat layer for players who want more dangerous encounters.',
-    author: 'tktk',
-    game: 'Skyrim Special Edition',
-    category: 'Combat',
-    cover: 'https://images.unsplash.com/photo-1518709779341-56cf4535e94b?q=80&w=1600&auto=format&fit=crop',
-    url: 'https://www.nexusmods.com/skyrimspecialedition/mods/4024'
+    category: 'Utilities',
+    cover: '/featured-dmk.jpg',
+    url: 'https://www.nexusmods.com/skyrimspecialedition/mods/174499'
   }
 ];

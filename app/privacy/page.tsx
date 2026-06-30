@@ -2,16 +2,16 @@ export default function PrivacyPage() {
   return (
     <main className="legal-page">
       <section className="legal-card">
-        <a href="/">Back to Simple Collection Manager</a>
-        <h1>Politica de privacidade</h1>
+        <a className="back-link legal-back-link" href="/">&larr; Back</a>
+        <h1>Privacy Policy</h1>
         <p>
-          A API key informada e usada apenas para validar a sessao e executar acoes solicitadas pelo usuario dentro do app.
+          The API key you provide is used only to validate your session and perform the actions you request inside the app.
         </p>
         <p>
-          A chave nao e armazenada no navegador em localStorage. Ela e mantida em cookie HttpOnly criptografado para a
-          sessao configurada pelo aplicativo.
+          The key is not stored in browser localStorage. It is kept in an encrypted HttpOnly cookie for the session
+          configured by the application.
         </p>
-        <p>Viny Mods nao vende dados pessoais e nao representa a Nexus Mods.</p>
+        <p>Viny Mods does not sell personal data and does not represent Nexus Mods.</p>
       </section>
     </main>
   );

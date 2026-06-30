@@ -1,3 +1,10 @@
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = {
+  title: 'Terms of Service',
+  description: 'Terms of Service for Simple Collection Manager.'
+};
+
 export default function TermsPage() {
   return (
     <main className="legal-page">

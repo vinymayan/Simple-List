@@ -18,7 +18,7 @@ function normalizeCollection(raw: any): UserCollection {
   const manifest = raw.collection_manifest ?? raw.latest_revision?.collection_manifest ?? raw.revision?.collection_manifest;
   const info = manifest?.info ?? raw.info ?? {};
   const id = String(raw.id ?? raw.collection_id ?? raw.uuid ?? raw.slug ?? '');
-  const game = String(raw.domain_name ?? info.domain_name ?? raw.game ?? raw.game_domain_name ?? '');
+  const game = String(raw.domain_name ?? info.domain_name ?? info.domainName ?? raw.game ?? raw.game_domain_name ?? '');
   const slug = raw.slug ? String(raw.slug) : undefined;
 
   return {
@@ -57,8 +57,99 @@ function collectionCategoryId() {
   return Number.isFinite(value) && value > 0 ? value : null;
 }
 
-async function uploadManifestFile(apiKey: string, filename: string, payload: unknown) {
-  const bytes = Buffer.from(JSON.stringify(payload, null, 2), 'utf8');
+const CRC_TABLE = (() => {
+  const table = new Uint32Array(256);
+  for (let i = 0; i < 256; i += 1) {
+    let crc = i;
+    for (let bit = 0; bit < 8; bit += 1) {
+      crc = (crc & 1) ? (0xedb88320 ^ (crc >>> 1)) : (crc >>> 1);
+    }
+    table[i] = crc >>> 0;
+  }
+  return table;
+})();
+
+function crc32(bytes: Buffer) {
+  let crc = 0xffffffff;
+  for (const byte of bytes) {
+    crc = CRC_TABLE[(crc ^ byte) & 0xff] ^ (crc >>> 8);
+  }
+  return (crc ^ 0xffffffff) >>> 0;
+}
+
+function zipEntry(name: string, data = Buffer.alloc(0)) {
+  const nameBytes = Buffer.from(name, 'utf8');
+  const crc = crc32(data);
+  const local = Buffer.alloc(30);
+  local.writeUInt32LE(0x04034b50, 0);
+  local.writeUInt16LE(20, 4);
+  local.writeUInt16LE(0, 6);
+  local.writeUInt16LE(0, 8);
+  local.writeUInt16LE(0, 10);
+  local.writeUInt16LE(0, 12);
+  local.writeUInt32LE(crc, 14);
+  local.writeUInt32LE(data.length, 18);
+  local.writeUInt32LE(data.length, 22);
+  local.writeUInt16LE(nameBytes.length, 26);
+  local.writeUInt16LE(0, 28);
+
+  return {
+    nameBytes,
+    data,
+    crc,
+    local: Buffer.concat([local, nameBytes, data])
+  };
+}
+
+function buildCollectionArchive(manifest: unknown) {
+  const entries = [
+    zipEntry('collection.json', Buffer.from(JSON.stringify(manifest, null, 2), 'utf8')),
+    zipEntry('bundled/'),
+    zipEntry('patches/')
+  ];
+
+  let offset = 0;
+  const central = entries.map((entry) => {
+    const dir = entry.nameBytes.toString('utf8').endsWith('/');
+    const header = Buffer.alloc(46);
+    header.writeUInt32LE(0x02014b50, 0);
+    header.writeUInt16LE(20, 4);
+    header.writeUInt16LE(20, 6);
+    header.writeUInt16LE(0, 8);
+    header.writeUInt16LE(0, 10);
+    header.writeUInt16LE(0, 12);
+    header.writeUInt16LE(0, 14);
+    header.writeUInt32LE(entry.crc, 16);
+    header.writeUInt32LE(entry.data.length, 20);
+    header.writeUInt32LE(entry.data.length, 24);
+    header.writeUInt16LE(entry.nameBytes.length, 28);
+    header.writeUInt16LE(0, 30);
+    header.writeUInt16LE(0, 32);
+    header.writeUInt16LE(0, 34);
+    header.writeUInt16LE(0, 36);
+    header.writeUInt32LE(dir ? 0x10 : 0, 38);
+    header.writeUInt32LE(offset, 42);
+    offset += entry.local.length;
+    return Buffer.concat([header, entry.nameBytes]);
+  });
+
+  const local = Buffer.concat(entries.map((entry) => entry.local));
+  const centralDir = Buffer.concat(central);
+  const end = Buffer.alloc(22);
+  end.writeUInt32LE(0x06054b50, 0);
+  end.writeUInt16LE(0, 4);
+  end.writeUInt16LE(0, 6);
+  end.writeUInt16LE(entries.length, 8);
+  end.writeUInt16LE(entries.length, 10);
+  end.writeUInt32LE(centralDir.length, 12);
+  end.writeUInt32LE(local.length, 16);
+  end.writeUInt16LE(0, 20);
+
+  return Buffer.concat([local, centralDir, end]);
+}
+
+async function uploadCollectionArchive(apiKey: string, filename: string, manifest: unknown) {
+  const bytes = buildCollectionArchive(manifest);
   const upload = dataOf<{ id: string; presigned_url: string }>(await nexusFetch(`${V3_BASE}/uploads`, {
     apiKey,
     method: 'POST',
@@ -171,8 +262,8 @@ export async function publishCollection(apiKey: string, draft: CollectionDraft):
     };
   }
 
-  const filename = `${enrichedDraft.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'collection'}-manifest.json`;
-  const uploadId = await uploadManifestFile(apiKey, filename, nexusPayload.collection_manifest);
+  const filename = `${enrichedDraft.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'collection'}.zip`;
+  const uploadId = await uploadCollectionArchive(apiKey, filename, manifest);
   const collectionId = enrichedDraft.id?.trim();
   const endpoint = collectionId
     ? `${V3_BASE}/collections/${encodeURIComponent(collectionId)}/revisions`

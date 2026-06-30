@@ -141,6 +141,7 @@ export function normalizeFiles(raw: any): ModFile[] {
     const modFile = file.mod_file ?? file.modFile ?? {};
     const category = String(file.category_name ?? file.category ?? file.file_category ?? modFile.category ?? '').toUpperCase();
     const sizeBytes = parseFileSizeBytes(file);
+    const md5 = String(file.md5 ?? file.file_md5 ?? file.hash ?? file.md5_hash ?? nestedFile.md5 ?? nestedFile.file_md5 ?? modFile.md5 ?? '').trim();
     return {
       id: Number(file.file_id ?? file.game_scoped_id ?? file.fileId ?? file.uid ?? file.id),
       name: String(file.name ?? file.file_name ?? nestedFile.name ?? modFile.name ?? `File ${file.file_id ?? file.game_scoped_id ?? file.id}`),
@@ -148,6 +149,7 @@ export function normalizeFiles(raw: any): ModFile[] {
       category: category || 'MISCELLANEOUS',
       uploadedAt: String(file.uploaded_timestamp ?? file.uploaded_time ?? file.date_uploaded ?? file.uploaded_at ?? ''),
       sizeBytes,
+      md5: md5 || undefined,
       description: String(file.description ?? ''),
       isPrimary: Boolean(file.is_primary ?? file.primary ?? category === 'MAIN')
     };

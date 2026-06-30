@@ -7,18 +7,20 @@ import {
   Check,
   ChevronRight,
   Copy,
-  Download,
   Eye,
+  ExternalLink,
   FileJson,
   GripVertical,
-  KeyRound,
   Loader2,
   LogOut,
   Plus,
+  RefreshCw,
   ShieldCheck,
+  Star,
   Trash2,
   UploadCloud
 } from 'lucide-react';
+import { FEATURED_MODS } from '@/lib/featured-mods';
 import type { CollectionDraft, CollectionItem, Game, ModFile, ModSummary, PublishResult, UserCollection } from '@/lib/types';
 
 type ApiState<T> = {
@@ -89,6 +91,7 @@ function createCollectionItem(mod: ModSummary, file: ModFile, installOrder = 1):
     fileVersion: file.version || mod.version,
     fileCategory: file.category,
     fileSizeBytes: file.sizeBytes,
+    fileMd5: file.md5,
     required: true,
     installOrder,
     status: mod.available ? 'ok' : 'unavailable'
@@ -127,6 +130,7 @@ function parseCollectionUrl(value: string) {
 export default function Home() {
   const [view, setView] = useState<View>('login');
   const [apiKey, setApiKey] = useState('');
+  const [featuredIndex, setFeaturedIndex] = useState(0);
   const [authed, setAuthed] = useState(false);
   const [auth, setAuth] = useState<ApiState<any>>({ loading: false, error: '' });
   const [games, setGames] = useState<Game[]>([]);
@@ -137,6 +141,8 @@ export default function Home() {
   const [collectionLinkInput, setCollectionLinkInput] = useState('');
   const [collectionIdInput, setCollectionIdInput] = useState('');
   const [collectionLinkError, setCollectionLinkError] = useState('');
+  const [myCollectionTextFilter, setMyCollectionTextFilter] = useState('');
+  const [myCollectionGameFilter, setMyCollectionGameFilter] = useState('all');
   const [modInput, setModInput] = useState('');
   const [modState, setModState] = useState<ApiState<{ mod: ModSummary }>>({ loading: false, error: '' });
   const [filesState, setFilesState] = useState<ApiState<{ files: ModFile[] }>>({ loading: false, error: '' });
@@ -182,6 +188,7 @@ export default function Home() {
   }, [collection]);
 
   const currentGame = useMemo(() => games.find((game) => game.domainName === selectedGame), [games, selectedGame]);
+  const featuredMod = FEATURED_MODS[featuredIndex];
   const selectedMod = modState.data?.mod || null;
   const groupedFiles = groupFiles(filesState.data?.files || []);
   const collectionOk = collection.length > 0 && collection.every((item) => item.status === 'ok' && item.fileId);
@@ -429,37 +436,108 @@ export default function Home() {
     }
   }
 
+  function openFeaturedMod() {
+    window.open(featuredMod.url, '_blank', 'noopener,noreferrer');
+  }
+
+  function moveFeaturedMod(direction: -1 | 1) {
+    setFeaturedIndex((index) => (index + direction + FEATURED_MODS.length) % FEATURED_MODS.length);
+  }
+
   function renderLogin() {
     return (
       <main className="login-shell">
-        <section className="stage-card narrow-stage login-only">
-          <div className="welcome-card">
-            <div className="orb-icon"><HydrationSafeIcon><KeyRound size={34} /></HydrationSafeIcon></div>
-            <h2>Validate API Key</h2>
-            <p>Enter your Nexus Mods key to access the app.</p>
+        <section className="stage-card narrow-stage login-only api-login-stage">
+          <article
+            className="featured-mod-panel"
+            role="link"
+            tabIndex={0}
+            onClick={openFeaturedMod}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                openFeaturedMod();
+              }
+            }}
+          >
+            <div className="featured-mod-art" style={{ backgroundImage: `url(${featuredMod.cover})` }} />
+            <div className="featured-mod-copy">
+              <div className="featured-kicker"><Star size={16} /> Featured mod</div>
+              <h2>{featuredMod.name}</h2>
+              <strong>{featuredMod.description}</strong>
+              <p>{featuredMod.details}</p>
+              <div className="featured-tags">
+                <span>{featuredMod.game}</span>
+                <span>{featuredMod.category}</span>
+              </div>
+              <div className="featured-author">By {featuredMod.author}</div>
+              <div className="featured-count">{String(featuredIndex + 1).padStart(2, '0')} <span>/ {String(FEATURED_MODS.length).padStart(2, '0')}</span></div>
+            </div>
+            <div className="featured-nav" onClick={(event) => event.stopPropagation()}>
+              <button type="button" aria-label="Previous featured mod" onClick={() => moveFeaturedMod(-1)}>←</button>
+              <button type="button" aria-label="Next featured mod" onClick={() => moveFeaturedMod(1)}>→</button>
+            </div>
+          </article>
+
+          <aside className="api-auth-panel">
+            <div className="api-brand">
+              <img src="/logo.svg" alt="" />
+              <div>
+                <h1>Simple Collection Manager</h1>
+              </div>
+            </div>
+            <div className="api-accent" />
+
+            <div className="api-form-copy">
+              <h2>Validate your Nexus API Key</h2>
+              <p>Use your personal API key to search mods, browse files, and publish collections.</p>
+            </div>
+
             <div className="field">
               <label className="label">Nexus API Key</label>
-              <input
-                className="input"
-                type="password"
-                placeholder="Paste your API key"
-                value={apiKey}
-                onChange={(event) => setApiKey(event.target.value)}
-                onKeyDown={(event) => event.key === 'Enter' && validateKey()}
-              />
+              <div className="api-key-field">
+                <input
+                  className="input"
+                  type="password"
+                  placeholder="Paste your API key"
+                  value={apiKey}
+                  onChange={(event) => setApiKey(event.target.value)}
+                  onKeyDown={(event) => event.key === 'Enter' && validateKey()}
+                />
+                <Eye size={18} />
+              </div>
             </div>
-            <button className="btn btn-primary full" disabled={auth.loading || !apiKey.trim()} onClick={validateKey}>
+            <button className="btn btn-primary full api-submit" disabled={auth.loading || !apiKey.trim()} onClick={validateKey}>
               {auth.loading ? <Loader2 size={16} className="spin" /> : <HydrationSafeIcon><ShieldCheck size={16} /></HydrationSafeIcon>}
-              Confirm API
+              Validate API Key
             </button>
             {auth.error ? <div className="error">{auth.error}</div> : null}
-          </div>
+
+            <div className="api-security-note">
+              <ShieldCheck size={22} />
+              <ul>
+                <li>Stored securely for this session</li>
+                <li>Used only to access your Nexus account</li>
+                <li>You can revoke it anytime on Nexus Mods</li>
+              </ul>
+            </div>
+
+            <a className="api-key-link" href="https://www.nexusmods.com/users/myaccount?tab=api%20access" target="_blank" rel="noreferrer">
+              Need an API key? <span>Get it from Nexus Mods</span> <ExternalLink size={16} />
+            </a>
+
+            <p className="api-disclaimer">
+              Simple Collection Manager is an independent project and is not affiliated with, endorsed by, or connected to Nexus Mods.
+            </p>
+          </aside>
         </section>
       </main>
     );
   }
 
   function renderPageHeading(title: ReactNode, subtitle?: ReactNode, actions?: ReactNode, showBack = view !== 'dashboard') {
+    const showGameContext = showBack && view !== 'my-collections';
+
     return (
       <div className="page-heading">
         <div className="page-controls">
@@ -468,16 +546,12 @@ export default function Home() {
               <ArrowLeft size={15} /> Back
             </button>
           ) : (
-            <button className="back-link" onClick={logout}>
-              <LogOut size={15} /> Sign out
-            </button>
+            <span />
           )}
-          {showBack ? (
-            <div className="page-session">
-              <span className="badge">{currentGame?.name || selectedGame}</span>
-              <button className="btn btn-ghost" onClick={logout}><LogOut size={16} /> Sign out</button>
-            </div>
-          ) : null}
+          <div className="page-session">
+            {showGameContext ? <span className="badge">{currentGame?.name || selectedGame}</span> : null}
+            <button className="back-link signout-link" onClick={logout}><LogOut size={15} /> Sign out</button>
+          </div>
         </div>
         <div className="stage-head">
           <div>
@@ -508,19 +582,21 @@ export default function Home() {
           undefined,
           false
         )}
-        <div className="choice-grid">
-          <button className="flow-card" onClick={loadMyCollections}>
-            <FileJson size={28} />
-            <strong>Open my collections</strong>
-            <span>Lists collections available to the validated API key and opens editing.</span>
-            <ChevronRight size={18} />
-          </button>
-          <button className="flow-card" onClick={startCreate}>
-            <Plus size={28} />
-            <strong>Create collection</strong>
-            <span>Choose the game and add mods by ID or URL.</span>
-            <ChevronRight size={18} />
-          </button>
+        <div className="stage-scroll">
+          <div className="choice-grid">
+            <button className="flow-card" onClick={loadMyCollections}>
+              <FileJson size={28} />
+              <strong>Open my collections</strong>
+              <span>Lists collections available to the validated API key and opens editing.</span>
+              <ChevronRight size={18} />
+            </button>
+            <button className="flow-card" onClick={startCreate}>
+              <Plus size={28} />
+              <strong>Create collection</strong>
+              <span>Choose the game and add mods by ID or URL.</span>
+              <ChevronRight size={18} />
+            </button>
+          </div>
         </div>
       </section>
     );
@@ -532,64 +608,94 @@ export default function Home() {
       const key = item.id || item.slug || item.url;
       return list.findIndex((candidate) => (candidate.id || candidate.slug || candidate.url) === key) === index;
     });
+    const collectionGames = [...new Set(collections.map((item) => item.game).filter(Boolean))].sort();
+    const filteredCollections = collections.filter((item) => {
+      const text = myCollectionTextFilter.trim().toLowerCase();
+      const matchesText = !text || `${item.title} ${item.description || ''} ${item.game || ''} ${item.slug || ''} ${item.url || ''}`.toLowerCase().includes(text);
+      const matchesGame = myCollectionGameFilter === 'all' || item.game === myCollectionGameFilter;
+      return matchesText && matchesGame;
+    });
+
     return (
       <section className="stage-card collection-stage">
         {renderPageHeading(
           'My collections',
           'Collections returned for the current API key.',
           <button className="btn" onClick={loadMyCollections} disabled={myCollections.loading}>
-            {myCollections.loading ? <Loader2 size={16} className="spin" /> : <Download size={16} />}
+            {myCollections.loading ? <Loader2 size={16} className="spin" /> : <RefreshCw size={16} />}
             Refresh
           </button>
         )}
-        {myCollections.error ? <div className="error">{myCollections.error}</div> : null}
-        <div className="link-collection-panel">
-          <div className="field">
-            <label className="label">Add collection by link</label>
-            <input
-              className="input"
-              value={collectionLinkInput}
-              onChange={(event) => setCollectionLinkInput(event.target.value)}
-              placeholder="https://next.nexusmods.com/skyrimspecialedition/collections/slug"
-            />
+        <div className="stage-scroll">
+          {myCollections.error ? <div className="error">{myCollections.error}</div> : null}
+          <div className="link-collection-panel">
+            <div className="field">
+              <label className="label">Add collection by link</label>
+              <input
+                className="input"
+                value={collectionLinkInput}
+                onChange={(event) => setCollectionLinkInput(event.target.value)}
+                placeholder="https://next.nexusmods.com/skyrimspecialedition/collections/slug"
+              />
+            </div>
+            <div className="field">
+              <label className="label">Collection ID</label>
+              <input
+                className="input"
+                value={collectionIdInput}
+                onChange={(event) => setCollectionIdInput(event.target.value)}
+                placeholder="Required to create a revision"
+              />
+            </div>
+            <button className="btn btn-primary" onClick={addCollectionLink} disabled={!collectionLinkInput.trim()}>
+              <Plus size={16} /> Save link
+            </button>
           </div>
-          <div className="field">
-            <label className="label">Collection ID</label>
-            <input
-              className="input"
-              value={collectionIdInput}
-              onChange={(event) => setCollectionIdInput(event.target.value)}
-              placeholder="Required to create a revision"
-            />
+          {collectionLinkError ? <div className="error">{collectionLinkError}</div> : null}
+          <div className="collections-filter-panel">
+            <div className="field">
+              <label className="label">Filter collections</label>
+              <input
+                className="input"
+                value={myCollectionTextFilter}
+                onChange={(event) => setMyCollectionTextFilter(event.target.value)}
+                placeholder="Title, description, slug, or URL"
+              />
+            </div>
+            <div className="field">
+              <label className="label">Game</label>
+              <select className="select" value={myCollectionGameFilter} onChange={(event) => setMyCollectionGameFilter(event.target.value)}>
+                <option value="all">All games</option>
+                {collectionGames.map((game) => (
+                  <option key={game} value={game}>{games.find((item) => item.domainName === game)?.name || game}</option>
+                ))}
+              </select>
+            </div>
           </div>
-          <button className="btn btn-primary" onClick={addCollectionLink} disabled={!collectionLinkInput.trim()}>
-            <Plus size={16} /> Save link
-          </button>
-        </div>
-        {collectionLinkError ? <div className="error">{collectionLinkError}</div> : null}
-        {myCollections.loading ? <div className="empty"><Loader2 size={18} className="spin" /> Loading collections...</div> : null}
-        {!myCollections.loading && collections.length ? (
-          <div className="collection-list">
-            {collections.map((item) => (
-              <article key={item.id} className="saved-collection">
-                <div>
-                  <h3>{item.title}</h3>
-                  <p>{item.description || 'No description available.'}</p>
-                  <div className="mod-meta">
-                    <span>{item.game}</span>
-                    {item.revisionNumber ? <span>Revision {item.revisionNumber}</span> : null}
-                    {item.status ? <span>{item.status}</span> : null}
-                    {item.editable === false ? <span>saved link without id</span> : null}
+          {myCollections.loading ? <div className="empty"><Loader2 size={18} className="spin" /> Loading collections...</div> : null}
+          {!myCollections.loading && filteredCollections.length ? (
+            <div className="collection-list">
+              {filteredCollections.map((item) => (
+                <article key={item.id} className="saved-collection">
+                  <div>
+                    <h3>{item.title}</h3>
+                    <p>{item.description || 'No description available.'}</p>
+                    <div className="mod-meta">
+                      <span>{item.game}</span>
+                      {item.revisionNumber ? <span>Revision {item.revisionNumber}</span> : null}
+                      {item.status ? <span>{item.status}</span> : null}
+                      {item.editable === false ? <span>saved link without id</span> : null}
+                    </div>
                   </div>
-                </div>
-                <button className="btn btn-primary" disabled={item.editable === false} onClick={() => editExisting(item)}><Eye size={16} /> Edit</button>
-              </article>
-            ))}
-          </div>
-        ) : null}
-        {!myCollections.loading && !collections.length && !myCollections.error ? (
-          <div className="empty">No collections were returned for this API key.</div>
-        ) : null}
+                  <button className="btn btn-primary" disabled={item.editable === false} onClick={() => editExisting(item)}><Eye size={16} /> Edit</button>
+                </article>
+              ))}
+            </div>
+          ) : null}
+          {!myCollections.loading && !filteredCollections.length && !myCollections.error ? (
+            <div className="empty">{collections.length ? 'No collections match the current filters.' : 'No collections were returned for this API key.'}</div>
+          ) : null}
+        </div>
       </section>
     );
   }
@@ -604,14 +710,16 @@ export default function Home() {
             Continue <ChevronRight size={16} />
           </button>
         )}
-        <input className="input" value={selectedGame} onChange={(event) => setSelectedGame(event.target.value)} placeholder="Game domain" />
-        <div className="game-grid large">
-          {games.map((game) => (
-            <button key={game.domainName} className={`game-card ${selectedGame === game.domainName ? 'active' : ''}`} onClick={() => setSelectedGame(game.domainName)}>
-              <img src={game.image} alt={game.name} />
-              <span>{game.name}</span>
-            </button>
-          ))}
+        <div className="stage-scroll">
+          <input className="input" value={selectedGame} onChange={(event) => setSelectedGame(event.target.value)} placeholder="Game domain" />
+          <div className="game-grid large">
+            {games.map((game) => (
+              <button key={game.domainName} className={`game-card ${selectedGame === game.domainName ? 'active' : ''}`} onClick={() => setSelectedGame(game.domainName)}>
+                <img src={game.image} alt={game.name} />
+                <span>{game.name}</span>
+              </button>
+            ))}
+          </div>
         </div>
       </section>
     );
@@ -628,129 +736,131 @@ export default function Home() {
           </button>
         )}
 
-        <div className="builder-layout">
-          <div className="form-stack">
-            <div className="lookup-panel">
-              <div className="field">
-                <label className="label">Mod ID or URL</label>
-                <div className="inline-lookup">
-                  <input
-                    className="input"
-                    value={modInput}
-                    onChange={(event) => setModInput(event.target.value)}
-                    placeholder="https://www.nexusmods.com/skyrimspecialedition/mods/123 ou 123"
-                    onKeyDown={(event) => event.key === 'Enter' && openModDetails()}
-                  />
-                  <button className="btn btn-primary" onClick={openModDetails} disabled={modState.loading || !modInput.trim()}>
-                    {modState.loading || filesState.loading ? <Loader2 size={16} className="spin" /> : <Eye size={16} />}
-                    Open details
-                  </button>
+        <div className="stage-scroll builder-scroll">
+          <div className="builder-layout">
+            <div className="form-stack">
+              <div className="lookup-panel">
+                <div className="field">
+                  <label className="label">Mod ID or URL</label>
+                  <div className="inline-lookup">
+                    <input
+                      className="input"
+                      value={modInput}
+                      onChange={(event) => setModInput(event.target.value)}
+                      placeholder="https://www.nexusmods.com/skyrimspecialedition/mods/123 ou 123"
+                      onKeyDown={(event) => event.key === 'Enter' && openModDetails()}
+                    />
+                    <button className="btn btn-primary" onClick={openModDetails} disabled={modState.loading || !modInput.trim()}>
+                      {modState.loading || filesState.loading ? <Loader2 size={16} className="spin" /> : <Eye size={16} />}
+                      Open details
+                    </button>
+                  </div>
                 </div>
+                {modState.error ? <div className="error">{modState.error}</div> : null}
               </div>
-              {modState.error ? <div className="error">{modState.error}</div> : null}
-            </div>
 
-            {selectedMod ? (
-              <article className="mod-detail-panel">
-                <img src={selectedMod.thumbnail || '/mod-placeholder.svg'} alt={selectedMod.name} />
-                <div className="mod-detail-copy">
-                  <div>
-                    <h3>{selectedMod.name}</h3>
-                    <div className="mod-meta">
-                      <span>by {selectedMod.author}</span>
-                      <span>{selectedMod.category}</span>
+              {selectedMod ? (
+                <article className="mod-detail-panel">
+                  <img src={selectedMod.thumbnail || '/mod-placeholder.svg'} alt={selectedMod.name} />
+                  <div className="mod-detail-copy">
+                    <div>
+                      <h3>{selectedMod.name}</h3>
+                      <div className="mod-meta">
+                        <span>by {selectedMod.author}</span>
+                        <span>{selectedMod.category}</span>
+                      </div>
+                      <p>{selectedMod.summary || 'No summary available.'}</p>
                     </div>
-                    <p>{selectedMod.summary || 'No summary available.'}</p>
-                  </div>
-                  <button className="icon-btn add-file-btn" title="Add selected files" onClick={addSelectedFiles} disabled={!selectedFileIds.length || filesState.loading}>
-                    <Plus size={18} />
-                  </button>
-                </div>
-              </article>
-            ) : null}
-
-            {filesState.loading ? <div className="empty"><Loader2 size={18} className="spin" /> Loading files...</div> : null}
-            {!filesState.loading && filesState.data?.files.length ? (
-              <div className="file-groups">
-                {Object.entries(groupedFiles).map(([group, files]) => files.length ? (
-                  <details className="file-group" key={group} open={group !== 'OLD_VERSION'}>
-                    <summary>
-                      <span>{groupTitle(group)}</span>
-                      <small>{files.length}</small>
-                    </summary>
-                    {files.map((file) => (
-                      <button key={file.id} className={`file-option ${selectedFileIds.includes(file.id) ? 'active' : ''}`} onClick={() => toggleFile(file.id)}>
-                        <span className="checkbox-mark">{selectedFileIds.includes(file.id) ? <Check size={13} /> : null}</span>
-                        <div>
-                          <strong>{file.name}</strong>
-                          <div className="helper">Version {file.version || '-'} - {file.uploadedAt || '-'} - {formatBytes(file.sizeBytes)}</div>
-                          {file.description ? <div className="helper">{file.description}</div> : null}
-                        </div>
-                      </button>
-                    ))}
-                  </details>
-                ) : null)}
-              </div>
-            ) : null}
-          </div>
-
-          <aside className="side-panel">
-            <div className="side-head">
-              <strong>Mods in collection</strong>
-              <span>{collection.length}</span>
-            </div>
-            <div className="field">
-              <label className="label">Filter mods</label>
-              <input
-                className="input compact-input"
-                value={collectionTextFilter}
-                onChange={(event) => setCollectionTextFilter(event.target.value)}
-                placeholder="Mod or file name"
-              />
-            </div>
-            <div className="mini-list">
-              {filteredCollection.length ? filteredCollection.map((item) => {
-                const order = collection.findIndex((candidate) => candidate.localId === item.localId) + 1;
-                return (
-                <article
-                  key={item.localId}
-                  className={`mini-item ${draggedItemId === item.localId ? 'dragging' : ''}`}
-                  draggable
-                  onDragStart={() => setDraggedItemId(item.localId)}
-                  onDragOver={(event) => event.preventDefault()}
-                  onDrop={() => dropItemOn(item.localId)}
-                  onDragEnd={() => setDraggedItemId(null)}
-                >
-                  <GripVertical className="drag-handle" size={16} />
-                  <input
-                    key={order}
-                    className="order-input"
-                    aria-label={`Order for ${item.modName}`}
-                    defaultValue={order}
-                    onKeyDown={(event) => {
-                      if (event.key !== 'Enter') return;
-                      const value = Number((event.currentTarget as HTMLInputElement).value);
-                      if (Number.isFinite(value)) moveItemToPosition(item.localId, value);
-                      (event.currentTarget as HTMLInputElement).blur();
-                    }}
-                    onBlur={(event) => {
-                      event.currentTarget.value = String(collection.findIndex((candidate) => candidate.localId === item.localId) + 1);
-                    }}
-                  />
-                  <img src={item.thumbnail || '/mod-placeholder.svg'} alt={item.modName} />
-                  <div>
-                    <strong>{item.modName}</strong>
-                    <span>{item.fileName}</span>
-                    <small>Version {item.fileVersion || '-'} - {formatBytes(item.fileSizeBytes)}</small>
-                  </div>
-                  <div className="mini-actions">
-                    <button className="icon-btn" title="Remove" onClick={() => removeItem(item.localId)}><Trash2 size={15} /></button>
+                    <button className="icon-btn add-file-btn" title="Add selected files" onClick={addSelectedFiles} disabled={!selectedFileIds.length || filesState.loading}>
+                      <Plus size={18} />
+                    </button>
                   </div>
                 </article>
-                );
-              }) : <div className="empty compact-empty">{collection.length ? 'No mods matched the filter.' : 'No files added.'}</div>}
+              ) : null}
+
+              {filesState.loading ? <div className="empty"><Loader2 size={18} className="spin" /> Loading files...</div> : null}
+              {!filesState.loading && filesState.data?.files.length ? (
+                <div className="file-groups">
+                  {Object.entries(groupedFiles).map(([group, files]) => files.length ? (
+                    <details className="file-group" key={group} open={group !== 'OLD_VERSION'}>
+                      <summary>
+                        <span>{groupTitle(group)}</span>
+                        <small>{files.length}</small>
+                      </summary>
+                      {files.map((file) => (
+                        <button key={file.id} className={`file-option ${selectedFileIds.includes(file.id) ? 'active' : ''}`} onClick={() => toggleFile(file.id)}>
+                          <span className="checkbox-mark">{selectedFileIds.includes(file.id) ? <Check size={13} /> : null}</span>
+                          <div>
+                            <strong>{file.name}</strong>
+                            <div className="helper">Version {file.version || '-'} - {file.uploadedAt || '-'} - {formatBytes(file.sizeBytes)}</div>
+                            {file.description ? <div className="helper">{file.description}</div> : null}
+                          </div>
+                        </button>
+                      ))}
+                    </details>
+                  ) : null)}
+                </div>
+              ) : null}
             </div>
-          </aside>
+
+            <aside className="side-panel">
+              <div className="side-head">
+                <strong>Mods in collection</strong>
+                <span>{collection.length}</span>
+              </div>
+              <div className="field">
+                <label className="label">Filter mods</label>
+                <input
+                  className="input compact-input"
+                  value={collectionTextFilter}
+                  onChange={(event) => setCollectionTextFilter(event.target.value)}
+                  placeholder="Mod or file name"
+                />
+              </div>
+              <div className="mini-list">
+                {filteredCollection.length ? filteredCollection.map((item) => {
+                  const order = collection.findIndex((candidate) => candidate.localId === item.localId) + 1;
+                  return (
+                  <article
+                    key={item.localId}
+                    className={`mini-item ${draggedItemId === item.localId ? 'dragging' : ''}`}
+                    draggable
+                    onDragStart={() => setDraggedItemId(item.localId)}
+                    onDragOver={(event) => event.preventDefault()}
+                    onDrop={() => dropItemOn(item.localId)}
+                    onDragEnd={() => setDraggedItemId(null)}
+                  >
+                    <GripVertical className="drag-handle" size={16} />
+                    <input
+                      key={order}
+                      className="order-input"
+                      aria-label={`Order for ${item.modName}`}
+                      defaultValue={order}
+                      onKeyDown={(event) => {
+                        if (event.key !== 'Enter') return;
+                        const value = Number((event.currentTarget as HTMLInputElement).value);
+                        if (Number.isFinite(value)) moveItemToPosition(item.localId, value);
+                        (event.currentTarget as HTMLInputElement).blur();
+                      }}
+                      onBlur={(event) => {
+                        event.currentTarget.value = String(collection.findIndex((candidate) => candidate.localId === item.localId) + 1);
+                      }}
+                    />
+                    <img src={item.thumbnail || '/mod-placeholder.svg'} alt={item.modName} />
+                    <div>
+                      <strong>{item.modName}</strong>
+                      <span>{item.fileName}</span>
+                      <small>Version {item.fileVersion || '-'} - {formatBytes(item.fileSizeBytes)}</small>
+                    </div>
+                    <div className="mini-actions">
+                      <button className="icon-btn" title="Remove" onClick={() => removeItem(item.localId)}><Trash2 size={15} /></button>
+                    </div>
+                  </article>
+                  );
+                }) : <div className="empty compact-empty">{collection.length ? 'No mods matched the filter.' : 'No files added.'}</div>}
+              </div>
+            </aside>
+          </div>
         </div>
       </section>
     );
@@ -763,77 +873,79 @@ export default function Home() {
           'Collection details',
           'These fields go into the manifest sent to Nexus.'
         )}
-        <div className="publish-layout">
-          <div className="form-stack">
-            <div className="field">
-              <label className="label">Title</label>
-              <input className="input" value={draftMeta.title} onChange={(e) => setDraftMeta({ ...draftMeta, title: e.target.value })} />
+        <div className="stage-scroll publish-scroll">
+          <div className="publish-layout">
+            <div className="form-stack">
+              <div className="field">
+                <label className="label">Title</label>
+                <input className="input" value={draftMeta.title} onChange={(e) => setDraftMeta({ ...draftMeta, title: e.target.value })} />
+              </div>
+              <div className="field">
+                <label className="label">Description</label>
+                <textarea className="textarea" value={draftMeta.description} maxLength={1000} onChange={(e) => setDraftMeta({ ...draftMeta, description: e.target.value })} />
+                <span className="helper">{draftMeta.description.length}/1000</span>
+              </div>
+              {editingCollection ? (
+                <label className="check-row">
+                  <input
+                    type="checkbox"
+                    checked={draftMeta.preserveDescription}
+                    onChange={(e) => setDraftMeta({ ...draftMeta, preserveDescription: e.target.checked })}
+                  />
+                  <span>Do not change the current collection description when creating a revision</span>
+                </label>
+              ) : null}
+              <div className="field">
+                <label className="label">Category</label>
+                <select className="select" value={draftMeta.category} onChange={(e) => setDraftMeta({ ...draftMeta, category: e.target.value })}>
+                  <option>Gameplay</option>
+                  <option>Animation</option>
+                  <option>Combat</option>
+                  <option>Visuals</option>
+                  <option>Utilities</option>
+                </select>
+              </div>
+              <div className="visibility-grid">
+                <button className={`choice ${draftMeta.visibility === 'public' ? 'active' : ''}`} onClick={() => setDraftMeta({ ...draftMeta, visibility: 'public' })}>
+                  <span className="radio" /> Public <small>Anyone can see it</small>
+                </button>
+                <button className={`choice ${draftMeta.visibility === 'private' ? 'active' : ''}`} onClick={() => setDraftMeta({ ...draftMeta, visibility: 'private' })}>
+                  <span className="radio" /> Private <small>Only you can see it</small>
+                </button>
+              </div>
+              <div className={collectionOk ? 'success' : 'error'}>
+                {collectionOk ? 'The collection is ready to publish.' : 'Add at least one valid file before publishing.'}
+              </div>
+              <div className="stage-actions">
+                <button className="btn btn-primary" onClick={publishCollection} disabled={publishState.loading || !collectionOk}>
+                  {publishState.loading ? <Loader2 size={16} className="spin" /> : <UploadCloud size={16} />}
+                  {editingCollection ? 'Create revision' : 'Publish collection'}
+                </button>
+              </div>
+              {publishState.error ? <div className="error">{publishState.error}</div> : null}
             </div>
-            <div className="field">
-              <label className="label">Description</label>
-              <textarea className="textarea" value={draftMeta.description} maxLength={1000} onChange={(e) => setDraftMeta({ ...draftMeta, description: e.target.value })} />
-              <span className="helper">{draftMeta.description.length}/1000</span>
-            </div>
-            {editingCollection ? (
-              <label className="check-row">
-                <input
-                  type="checkbox"
-                  checked={draftMeta.preserveDescription}
-                  onChange={(e) => setDraftMeta({ ...draftMeta, preserveDescription: e.target.checked })}
-                />
-                <span>Do not change the current collection description when creating a revision</span>
-              </label>
-            ) : null}
-            <div className="field">
-              <label className="label">Category</label>
-              <select className="select" value={draftMeta.category} onChange={(e) => setDraftMeta({ ...draftMeta, category: e.target.value })}>
-                <option>Gameplay</option>
-                <option>Animation</option>
-                <option>Combat</option>
-                <option>Visuals</option>
-                <option>Utilities</option>
-              </select>
-            </div>
-            <div className="visibility-grid">
-              <button className={`choice ${draftMeta.visibility === 'public' ? 'active' : ''}`} onClick={() => setDraftMeta({ ...draftMeta, visibility: 'public' })}>
-                <span className="radio" /> Public <small>Anyone can see it</small>
-              </button>
-              <button className={`choice ${draftMeta.visibility === 'private' ? 'active' : ''}`} onClick={() => setDraftMeta({ ...draftMeta, visibility: 'private' })}>
-                <span className="radio" /> Private <small>Only you can see it</small>
-              </button>
-            </div>
-            <div className={collectionOk ? 'success' : 'error'}>
-              {collectionOk ? 'The collection is ready to publish.' : 'Add at least one valid file before publishing.'}
-            </div>
-            <div className="stage-actions">
-              <button className="btn btn-primary" onClick={publishCollection} disabled={publishState.loading || !collectionOk}>
-                {publishState.loading ? <Loader2 size={16} className="spin" /> : <UploadCloud size={16} />}
-                {editingCollection ? 'Create revision' : 'Publish collection'}
-              </button>
-            </div>
-            {publishState.error ? <div className="error">{publishState.error}</div> : null}
+            <aside className="publish-summary">
+              <div className="side-head">
+                <strong>Mods in collection</strong>
+                <span>{collection.length}</span>
+              </div>
+              <div className="publish-mod-list">
+                {collection.length ? collection.map((item, index) => (
+                  <article className="publish-mod-item" key={item.localId}>
+                    <span className="order-pill">{index + 1}</span>
+                    <img src={item.thumbnail || '/mod-placeholder.svg'} alt={item.modName} />
+                    <div>
+                      <strong>{item.modName}</strong>
+                      <span>{item.fileName}</span>
+                      <small>Version {item.fileVersion || '-'} - {formatBytes(item.fileSizeBytes)}</small>
+                    </div>
+                  </article>
+                )) : (
+                  <div className="empty compact-empty">No files added.</div>
+                )}
+              </div>
+            </aside>
           </div>
-          <aside className="publish-summary">
-            <div className="side-head">
-              <strong>Mods in collection</strong>
-              <span>{collection.length}</span>
-            </div>
-            <div className="publish-mod-list">
-              {collection.length ? collection.map((item, index) => (
-                <article className="publish-mod-item" key={item.localId}>
-                  <span className="order-pill">{index + 1}</span>
-                  <img src={item.thumbnail || '/mod-placeholder.svg'} alt={item.modName} />
-                  <div>
-                    <strong>{item.modName}</strong>
-                    <span>{item.fileName}</span>
-                    <small>Version {item.fileVersion || '-'} - {formatBytes(item.fileSizeBytes)}</small>
-                  </div>
-                </article>
-              )) : (
-                <div className="empty compact-empty">No files added.</div>
-              )}
-            </div>
-          </aside>
         </div>
       </section>
     );
@@ -849,31 +961,68 @@ export default function Home() {
           editingCollection ? 'Revision created' : 'Collection published',
           'Publishing is complete and ready for review.'
         )}
-        <div className="success-content">
-          <div className="big-check"><Check size={58} /></div>
-          <h2>{editingCollection ? 'Revision created successfully!' : 'Collection published successfully!'}</h2>
-          <p>The data was sent with the selected description and files in the manifest.</p>
-        <article className="published-card">
-          <img src={draft.coverImage || '/mod-placeholder.svg'} alt={draft.title} />
-          <div>
-            <h3>{draft.title}</h3>
-            <p>{draft.description || 'No description.'}</p>
-            <div className="mod-meta">
-              <span>{collection.length} files</span>
-              {result?.revisionId ? <span>Revision {result.revisionId}</span> : null}
+        <div className="stage-scroll">
+          <div className="success-content">
+            <div className="big-check"><Check size={58} /></div>
+            <h2>{editingCollection ? 'Revision created successfully!' : 'Collection published successfully!'}</h2>
+            <p>The data was sent with the selected description and files in the manifest.</p>
+            <article className="published-card">
+              <img src={draft.coverImage || '/mod-placeholder.svg'} alt={draft.title} />
+              <div>
+                <h3>{draft.title}</h3>
+                <p>{draft.description || 'No description.'}</p>
+                <div className="mod-meta">
+                  <span>{collection.length} files</span>
+                  {result?.revisionId ? <span>Revision {result.revisionId}</span> : null}
+                </div>
+              </div>
+            </article>
+            <div className="copy-url">
+              <span>{url}</span>
+              <button className="icon-btn" title="Copy" onClick={() => navigator.clipboard?.writeText(url)}><Copy size={16} /></button>
+            </div>
+            <div className="stage-actions center">
+              <button className="btn" onClick={() => setView('builder')}>Keep editing</button>
+              <button className="btn btn-primary" onClick={startCreate}>New collection</button>
             </div>
           </div>
-        </article>
-        <div className="copy-url">
-          <span>{url}</span>
-          <button className="icon-btn" title="Copy" onClick={() => navigator.clipboard?.writeText(url)}><Copy size={16} /></button>
-        </div>
-        <div className="stage-actions center">
-          <button className="btn" onClick={() => setView('builder')}>Keep editing</button>
-          <button className="btn btn-primary" onClick={startCreate}>New collection</button>
-        </div>
         </div>
       </section>
+    );
+  }
+
+  function renderSidebar() {
+    const createActive = view === 'dashboard' || view === 'game' || view === 'builder' || view === 'publish' || view === 'success';
+    const manageActive = view === 'my-collections';
+
+    return (
+      <aside className="app-sidebar">
+        <div className="sidebar-brand">
+          <img src="/logo.svg" alt="" />
+          <div>
+            <strong>Simple</strong>
+            <span>Collection Manager</span>
+          </div>
+        </div>
+        <section className="sidebar-nexus-card">
+          <img src="/nexus-mods-logo.svg" alt="Nexus Mods" />
+          <nav className="sidebar-nav" aria-label="Nexus Mods collection navigation">
+            <button className={`sidebar-link ${createActive ? 'active' : ''}`} onClick={startCreate}>
+              <Plus size={20} />
+              Create Collection
+            </button>
+            <button className={`sidebar-link ${manageActive ? 'active' : ''}`} onClick={loadMyCollections}>
+              <FileJson size={20} />
+              Manage Collections
+            </button>
+          </nav>
+        </section>
+        <div className="sidebar-footer">
+          <span>Viny Mods</span>
+          <a href="/terms">Termos de servico</a>
+          <a href="/privacy">Politica de privacidade</a>
+        </div>
+      </aside>
     );
   }
 
@@ -890,8 +1039,11 @@ export default function Home() {
   if (!authed) return renderLogin();
 
   return (
-    <main className="app-shell no-chrome">
-      {renderView()}
+    <main className="app-workspace">
+      {renderSidebar()}
+      <div className="app-content">
+        {renderView()}
+      </div>
     </main>
   );
 }

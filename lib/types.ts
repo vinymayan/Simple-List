@@ -27,6 +27,7 @@ export type ModFile = {
   category: 'MAIN' | 'OPTIONAL' | 'OLD_VERSION' | 'MISCELLANEOUS' | string;
   uploadedAt?: string;
   sizeBytes?: number;
+  md5?: string;
   description?: string;
   isPrimary?: boolean;
 };
@@ -43,6 +44,7 @@ export type CollectionItem = {
   fileVersion?: string;
   fileCategory?: string;
   fileSizeBytes?: number;
+  fileMd5?: string;
   required: boolean;
   installOrder: number;
   notes?: string;

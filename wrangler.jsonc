@@ -4,6 +4,9 @@
   "name": "create-list",
   "compatibility_date": "2026-06-29",
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "vars": {
+    "NEXT_PUBLIC_SITE_URL": "https://scm.vinymods.com.br"
+  },
   "assets": {
     "directory": ".open-next/assets",
     "binding": "ASSETS"

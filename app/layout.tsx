@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://scm.vinymods.com.br'),
   title: {
     default: 'Simple Collection Manager',
     template: '%s | Simple Collection Manager'
@@ -20,8 +20,8 @@ export const metadata: Metadata = {
     images: [
       {
         url: '/social-thumb.jpg',
-        width: 1920,
-        height: 1080,
+        width: 1200,
+        height: 630,
         alt: 'Simple Collection Manager'
       }
     ],

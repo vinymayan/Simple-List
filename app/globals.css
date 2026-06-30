@@ -272,10 +272,22 @@ img { max-width: 100%; display: block; }
   color: #fff;
   font-size: 28px;
   line-height: 1;
+  display: grid;
+  place-items: center;
 }
 
 .featured-nav button:last-child {
   border-color: rgba(242, 140, 40, .9);
+}
+
+.featured-nav .featured-autoplay-toggle {
+  color: #dfe6ef;
+  border-color: rgba(255, 255, 255, .18);
+}
+
+.featured-nav .featured-autoplay-toggle[aria-pressed="true"] {
+  color: var(--orange);
+  border-color: rgba(242, 140, 40, .55);
 }
 
 .api-auth-panel {

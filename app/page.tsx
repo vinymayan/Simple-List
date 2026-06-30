@@ -15,6 +15,8 @@ import {
   GripVertical,
   Loader2,
   LogOut,
+  Pause,
+  Play,
   Plus,
   RefreshCw,
   ShieldCheck,
@@ -153,6 +155,7 @@ export default function Home() {
   const [apiKey, setApiKey] = useState('');
   const [featuredMods, setFeaturedMods] = useState<FeaturedMod[]>(FEATURED_MODS);
   const [featuredIndex, setFeaturedIndex] = useState(0);
+  const [featuredAutoplay, setFeaturedAutoplay] = useState(true);
   const [authed, setAuthed] = useState(false);
   const [auth, setAuth] = useState<ApiState<any>>({ loading: false, error: '' });
   const [games, setGames] = useState<Game[]>([]);
@@ -195,6 +198,24 @@ export default function Home() {
       })
       .catch(() => undefined);
   }, []);
+
+  useEffect(() => {
+    const seen = new Set<string>();
+    for (const mod of featuredMods) {
+      if (!mod.cover || seen.has(mod.cover)) continue;
+      seen.add(mod.cover);
+      const image = new Image();
+      image.src = mod.cover;
+    }
+  }, [featuredMods]);
+
+  useEffect(() => {
+    if (!featuredAutoplay || view !== 'login' || featuredMods.length < 2) return;
+    const timer = window.setInterval(() => {
+      setFeaturedIndex((index) => (index + 1) % featuredMods.length);
+    }, 5000);
+    return () => window.clearInterval(timer);
+  }, [featuredAutoplay, featuredMods.length, view]);
 
   useEffect(() => {
     const saved = localStorage.getItem('ncb_collection');
@@ -555,6 +576,15 @@ export default function Home() {
             </div>
             <div className="featured-nav" onClick={(event) => event.stopPropagation()}>
               <button type="button" aria-label="Previous featured mod" onClick={() => moveFeaturedMod(-1)}>←</button>
+              <button
+                type="button"
+                className="featured-autoplay-toggle"
+                aria-label={featuredAutoplay ? 'Pause featured mods autoplay' : 'Play featured mods autoplay'}
+                aria-pressed={featuredAutoplay}
+                onClick={() => setFeaturedAutoplay((current) => !current)}
+              >
+                {featuredAutoplay ? <Pause size={22} /> : <Play size={22} />}
+              </button>
               <button type="button" aria-label="Next featured mod" onClick={() => moveFeaturedMod(1)}>→</button>
             </div>
           </article>

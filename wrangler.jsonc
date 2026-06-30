@@ -16,5 +16,12 @@
   ],
   "images": {
     "binding": "IMAGES"
-  }
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "collection-manager",
+      "database_id": "a29134bb-dba6-468a-858e-d15be655e102"
+    }
+  ]
 }

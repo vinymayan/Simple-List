@@ -22,7 +22,7 @@ import {
   Trash2,
   UploadCloud
 } from 'lucide-react';
-import { FEATURED_MODS } from '@/lib/featured-mods';
+import { FEATURED_MODS, type FeaturedMod } from '@/lib/featured-mods';
 import type { CollectionDraft, CollectionItem, Game, ModFile, ModSummary, PublishResult, UserCollection } from '@/lib/types';
 
 type ApiState<T> = {
@@ -151,6 +151,7 @@ function parseCollectionUrl(value: string) {
 export default function Home() {
   const [view, setView] = useState<View>('login');
   const [apiKey, setApiKey] = useState('');
+  const [featuredMods, setFeaturedMods] = useState<FeaturedMod[]>(FEATURED_MODS);
   const [featuredIndex, setFeaturedIndex] = useState(0);
   const [authed, setAuthed] = useState(false);
   const [auth, setAuth] = useState<ApiState<any>>({ loading: false, error: '' });
@@ -185,6 +186,17 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
+    api<{ featuredMods: FeaturedMod[] }>('/api/featured-mods')
+      .then((res) => {
+        if (res.featuredMods.length) {
+          setFeaturedMods(res.featuredMods);
+          setFeaturedIndex(0);
+        }
+      })
+      .catch(() => undefined);
+  }, []);
+
+  useEffect(() => {
     const saved = localStorage.getItem('ncb_collection');
     if (!saved) return;
     try {
@@ -209,7 +221,7 @@ export default function Home() {
   }, [collection]);
 
   const currentGame = useMemo(() => games.find((game) => game.domainName === selectedGame), [games, selectedGame]);
-  const featuredMod = FEATURED_MODS[featuredIndex];
+  const featuredMod = featuredMods[featuredIndex] || FEATURED_MODS[0];
   const lookupLoading = modState.loading || filesState.loading;
   const collectionOk = collection.length > 0 && collection.every((item) => item.status === 'ok' && item.fileId);
   const filteredCollection = collection.filter((item) => {
@@ -512,7 +524,7 @@ export default function Home() {
   }
 
   function moveFeaturedMod(direction: -1 | 1) {
-    setFeaturedIndex((index) => (index + direction + FEATURED_MODS.length) % FEATURED_MODS.length);
+    setFeaturedIndex((index) => (index + direction + featuredMods.length) % featuredMods.length);
   }
 
   function renderLogin() {
@@ -531,7 +543,7 @@ export default function Home() {
               style={{ backgroundImage: `url(${featuredMod.cover})` }}
             />
             <div className="featured-mod-copy">
-              <div className="featured-kicker"><Star size={16} /> Featured mod</div>
+              <div className="featured-kicker"><Star size={16} /> {featuredMod.badgeLabel || 'Featured mod'}</div>
               <h2>{featuredMod.name}</h2>
               <p>{featuredMod.details}</p>
               <div className="featured-tags">
@@ -539,7 +551,7 @@ export default function Home() {
                 <span>{featuredMod.category}</span>
               </div>
               <div className="featured-author">By {featuredMod.author}</div>
-              <div className="featured-count">{String(featuredIndex + 1).padStart(2, '0')} <span>/ {String(FEATURED_MODS.length).padStart(2, '0')}</span></div>
+              <div className="featured-count">{String(featuredIndex + 1).padStart(2, '0')} <span>/ {String(featuredMods.length).padStart(2, '0')}</span></div>
             </div>
             <div className="featured-nav" onClick={(event) => event.stopPropagation()}>
               <button type="button" aria-label="Previous featured mod" onClick={() => moveFeaturedMod(-1)}>←</button>

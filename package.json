@@ -14,6 +14,7 @@
     "@types/node": "latest",
     "@types/react": "latest",
     "@types/react-dom": "latest",
+    "7z-wasm": "^1.2.0",
     "lucide-react": "latest",
     "next": "latest",
     "react": "latest",

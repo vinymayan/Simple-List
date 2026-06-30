@@ -47,6 +47,7 @@ type OpenedModDetails = {
 
 const DEFAULT_GAME = 'skyrimspecialedition';
 const SAVED_COLLECTIONS_KEY = 'ncb_saved_collections';
+const HIDDEN_COLLECTIONS_KEY = 'ncb_hidden_collections';
 const COLLECTION_CATEGORIES = ['Total Overhaul', 'Themed', 'Vanilla Plus', 'Essentials', 'Miscellaneous'];
 
 function HydrationSafeIcon({ children }: { children: ReactNode }) {
@@ -145,9 +146,34 @@ function parseModInputs(value: string) {
 }
 
 function parseCollectionUrl(value: string) {
-  const match = value.trim().match(/(?:next\.nexusmods\.com\/([^/]+)|(?:www\.)?nexusmods\.com\/games\/([^/]+))\/collections\/([^/?#]+)/i);
+  const match = value.trim().match(/(?:next\.nexusmods\.com\/([^/]+)|(?:www\.)?nexusmods\.com\/games\/([^/]+))\/collections\/([^/?#]+)(?:\/revisions\/(\d+))?/i);
   if (!match) return null;
-  return { game: (match[1] || match[2]).toLowerCase(), slug: decodeURIComponent(match[3]) };
+  const game = (match[1] || match[2]).toLowerCase();
+  const slug = decodeURIComponent(match[3]);
+  const revisionNumber = match[4] ? Number(match[4]) : undefined;
+  return {
+    game,
+    slug,
+    revisionNumber,
+    url: `https://next.nexusmods.com/${game}/collections/${slug}`
+  };
+}
+
+function normalizeLinkedCollection(collection: UserCollection): UserCollection {
+  if (!collection.id.startsWith('link:')) return collection;
+  const slug = collection.slug || collection.id.split(':').pop() || '';
+  if (!slug) return collection;
+  return {
+    ...collection,
+    id: slug,
+    slug,
+    url: collection.url || `https://next.nexusmods.com/${collection.game}/collections/${slug}`,
+    editable: true
+  };
+}
+
+function managerCollectionKey(collection: UserCollection) {
+  return collection.id || collection.slug || collection.url || collection.title;
 }
 
 export default function Home() {
@@ -162,9 +188,11 @@ export default function Home() {
   const [selectedGame, setSelectedGame] = useState(DEFAULT_GAME);
   const [editingCollection, setEditingCollection] = useState<UserCollection | null>(null);
   const [savedCollections, setSavedCollections] = useState<UserCollection[]>([]);
+  const [hiddenCollectionKeys, setHiddenCollectionKeys] = useState<string[]>([]);
   const [myCollections, setMyCollections] = useState<ApiState<{ collections: UserCollection[]; source: string; message?: string }>>({ loading: false, error: '' });
   const [collectionLinkInput, setCollectionLinkInput] = useState('');
   const [collectionLinkError, setCollectionLinkError] = useState('');
+  const [collectionImportState, setCollectionImportState] = useState<ApiState<UserCollection>>({ loading: false, error: '' });
   const [myCollectionTextFilter, setMyCollectionTextFilter] = useState('');
   const [myCollectionGameFilter, setMyCollectionGameFilter] = useState('all');
   const [modInput, setModInput] = useState('');
@@ -231,9 +259,21 @@ export default function Home() {
     const saved = localStorage.getItem(SAVED_COLLECTIONS_KEY);
     if (!saved) return;
     try {
-      setSavedCollections(JSON.parse(saved) as UserCollection[]);
+      const normalized = (JSON.parse(saved) as UserCollection[]).map(normalizeLinkedCollection);
+      setSavedCollections(normalized);
+      localStorage.setItem(SAVED_COLLECTIONS_KEY, JSON.stringify(normalized));
     } catch {
       localStorage.removeItem(SAVED_COLLECTIONS_KEY);
+    }
+  }, []);
+
+  useEffect(() => {
+    const saved = localStorage.getItem(HIDDEN_COLLECTIONS_KEY);
+    if (!saved) return;
+    try {
+      setHiddenCollectionKeys(JSON.parse(saved) as string[]);
+    } catch {
+      localStorage.removeItem(HIDDEN_COLLECTIONS_KEY);
     }
   }, []);
 
@@ -310,11 +350,20 @@ export default function Home() {
       ...next,
       editable: next.editable ?? !String(next.id).startsWith('link:')
     };
+    const normalizedKey = managerCollectionKey(normalized);
+    setHiddenCollectionKeys((items) => {
+      const nextHidden = items.filter((key) => key !== normalizedKey);
+      localStorage.setItem(HIDDEN_COLLECTIONS_KEY, JSON.stringify(nextHidden));
+      return nextHidden;
+    });
     setSavedCollections((items) => {
-      const key = normalized.id || normalized.slug || normalized.url || normalized.title;
       const merged = [
         normalized,
-        ...items.filter((item) => (item.id || item.slug || item.url || item.title) !== key)
+        ...items.filter((item) => {
+          const candidate = normalizeLinkedCollection(item);
+          const candidateKey = candidate.id || candidate.slug || candidate.url || candidate.title;
+          return candidateKey !== normalizedKey && candidate.slug !== normalized.slug && candidate.url !== normalized.url;
+        })
       ];
       localStorage.setItem(SAVED_COLLECTIONS_KEY, JSON.stringify(merged));
       return merged;
@@ -329,13 +378,14 @@ export default function Home() {
     }
 
     saveKnownCollection({
-      id: `link:${parsed.game}:${parsed.slug}`,
+      id: parsed.slug,
       slug: parsed.slug,
       title: parsed.slug.replace(/[-_]+/g, ' '),
       description: '',
       game: parsed.game,
-      url: collectionLinkInput.trim(),
-      editable: false
+      revisionNumber: parsed.revisionNumber,
+      url: parsed.url,
+      editable: true
     });
     setCollectionLinkInput('');
     setCollectionLinkError('');
@@ -350,6 +400,96 @@ export default function Home() {
     } catch (error: any) {
       setMyCollections({ loading: false, error: error.message || 'Could not load your collections.' });
     }
+  }
+
+  async function importCollectionFile(file?: File | null) {
+    if (!file) return;
+    setCollectionImportState({ loading: true, error: '' });
+    try {
+      const form = new FormData();
+      form.append('file', file);
+      const response = await fetch('/api/collections/import', {
+        method: 'POST',
+        body: form
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.message || 'Could not import collection.');
+
+      let imported = await enrichImportedCollection(payload.collection as UserCollection);
+      const parsedLink = parseCollectionUrl(collectionLinkInput);
+      if (parsedLink) {
+        imported = {
+          ...imported,
+          id: parsedLink.slug,
+          slug: parsedLink.slug,
+          game: parsedLink.game || imported.game,
+          revisionNumber: parsedLink.revisionNumber,
+          url: parsedLink.url,
+          editable: true
+        };
+        setCollectionLinkInput('');
+      }
+
+      saveKnownCollection(imported);
+      setCollectionImportState({ loading: false, error: '', data: imported });
+      setCollectionLinkError('');
+    } catch (error: any) {
+      setCollectionImportState({ loading: false, error: error.message || 'Could not import collection.' });
+    }
+  }
+
+  async function enrichImportedCollection(imported: UserCollection): Promise<UserCollection> {
+    const items = imported.items || [];
+    if (!items.length) return imported;
+
+    const uniqueMods = [...new Map(items.map((item) => [`${item.game}:${item.modId}`, item])).values()];
+    const modMap = new Map<string, ModSummary>();
+
+    for (let index = 0; index < uniqueMods.length; index += 6) {
+      const batch = uniqueMods.slice(index, index + 6);
+      await Promise.all(batch.map(async (item) => {
+        try {
+          const result = await api<{ mod: ModSummary }>(`/api/mods/${encodeURIComponent(item.game)}/${item.modId}`);
+          modMap.set(`${item.game}:${item.modId}`, result.mod);
+        } catch {
+          // Keep imported manifest data when Nexus metadata cannot be fetched.
+        }
+      }));
+    }
+
+    return {
+      ...imported,
+      items: items.map((item) => {
+        const mod = modMap.get(`${item.game}:${item.modId}`);
+        if (!mod) return item;
+        return {
+          ...item,
+          modName: item.modName || mod.name,
+          author: item.author || mod.author,
+          thumbnail: mod.thumbnail || item.thumbnail,
+          fileCategory: item.fileCategory || mod.category
+        };
+      })
+    };
+  }
+
+  function removeCollectionFromManager(collectionInfo: UserCollection) {
+    const key = managerCollectionKey(collectionInfo);
+    if (!key) return;
+    const confirmed = window.confirm(`Remove "${collectionInfo.title}" from My Collections? This does not delete it from Nexus Mods.`);
+    if (!confirmed) return;
+
+    setSavedCollections((items) => {
+      const next = items.filter((item) => managerCollectionKey(item) !== key);
+      localStorage.setItem(SAVED_COLLECTIONS_KEY, JSON.stringify(next));
+      return next;
+    });
+
+    setHiddenCollectionKeys((items) => {
+      const next = Array.from(new Set([...items, key]));
+      localStorage.setItem(HIDDEN_COLLECTIONS_KEY, JSON.stringify(next));
+      return next;
+    });
   }
 
   function editExisting(collectionInfo: UserCollection) {
@@ -721,8 +861,9 @@ export default function Home() {
   function renderMyCollections() {
     const apiCollections = myCollections.data?.collections || [];
     const collections = [...savedCollections, ...apiCollections].filter((item, index, list) => {
-      const key = item.id || item.slug || item.url;
-      return list.findIndex((candidate) => (candidate.id || candidate.slug || candidate.url) === key) === index;
+      const key = managerCollectionKey(item);
+      if (hiddenCollectionKeys.includes(key)) return false;
+      return list.findIndex((candidate) => managerCollectionKey(candidate) === key) === index;
     });
     const collectionGames = [...new Set(collections.map((item) => item.game).filter(Boolean))].sort();
     const filteredCollections = collections.filter((item) => {
@@ -744,6 +885,11 @@ export default function Home() {
         )}
         <div className="stage-scroll">
           {myCollections.error ? <div className="error">{myCollections.error}</div> : null}
+          <div className="tip collection-import-disclaimer">
+            <strong>Collections added only by link may not load all collection data.</strong> For the best result, import the
+            <strong><code>collection.json</code>, <code>.zip</code>, or <code>.7z</code></strong> file from
+            <strong><code>AppData\Roaming\Vortex\downloads\gamename</code></strong>.
+          </div>
           <div className="link-collection-panel">
             <div className="field">
               <label className="label">Add collection by link</label>
@@ -751,14 +897,29 @@ export default function Home() {
                 className="input"
                 value={collectionLinkInput}
                 onChange={(event) => setCollectionLinkInput(event.target.value)}
-                placeholder="https://www.nexusmods.com/games/skyrimspecialedition/collections/ebe5q6"
+                placeholder="https://www.nexusmods.com/games/skyrimspecialedition/collections/ebe5q6/revisions/1"
               />
             </div>
             <button className="btn btn-primary" onClick={addCollectionLink} disabled={!collectionLinkInput.trim()}>
               <Plus size={16} /> Add collection
             </button>
+            <label className={`btn file-import-btn ${collectionImportState.loading ? 'disabled' : ''}`}>
+              {collectionImportState.loading ? <Loader2 size={16} className="spin" /> : <UploadCloud size={16} />}
+              Import JSON/ZIP
+              <input
+                type="file"
+                accept=".json,.zip,.7z,.7zip,application/json,application/zip,application/x-7z-compressed"
+                disabled={collectionImportState.loading}
+                onChange={(event) => {
+                  void importCollectionFile(event.target.files?.[0]);
+                  event.currentTarget.value = '';
+                }}
+              />
+            </label>
           </div>
           {collectionLinkError ? <div className="error">{collectionLinkError}</div> : null}
+          {collectionImportState.error ? <div className="error">{collectionImportState.error}</div> : null}
+          {collectionImportState.data ? <div className="success">Imported {collectionImportState.data.title}.</div> : null}
           <div className="collections-filter-panel">
             <div className="field">
               <label className="label">Filter collections</label>
@@ -794,7 +955,10 @@ export default function Home() {
                       {item.editable === false ? <span>saved link without id</span> : null}
                     </div>
                   </div>
-                  <button className="btn btn-primary" disabled={item.editable === false} onClick={() => editExisting(item)}><Eye size={16} /> Edit</button>
+                  <div className="saved-collection-actions">
+                    <button className="btn btn-primary" disabled={item.editable === false} onClick={() => editExisting(item)}><Eye size={16} /> Edit</button>
+                    <button className="btn btn-danger" onClick={() => removeCollectionFromManager(item)}><Trash2 size={16} /> Remove</button>
+                  </div>
                 </article>
               ))}
             </div>

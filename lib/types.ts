@@ -72,6 +72,7 @@ export type PublishResult = {
   collectionUrl?: string;
   revisionId?: string;
   uploadId?: string;
+  categoryId?: number | null;
   manifest?: unknown;
   message?: string;
 };

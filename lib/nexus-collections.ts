@@ -57,6 +57,39 @@ function collectionCategoryId() {
   return Number.isFinite(value) && value > 0 ? value : null;
 }
 
+const DEFAULT_COLLECTION_CATEGORY_IDS: Record<string, number> = {
+  'total overhaul': 1,
+  themed: 2,
+  'vanilla plus': 3,
+  essentials: 4,
+  miscellaneous: 5
+};
+
+function configuredCollectionCategoryIds() {
+  const raw = process.env.NEXUS_COLLECTION_CATEGORY_IDS;
+  if (!raw) return DEFAULT_COLLECTION_CATEGORY_IDS;
+
+  try {
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    const normalized = Object.entries(parsed).reduce<Record<string, number>>((map, [key, value]) => {
+      const id = Number(value);
+      if (Number.isFinite(id) && id > 0) map[key.trim().toLowerCase()] = id;
+      return map;
+    }, {});
+    return Object.keys(normalized).length ? normalized : DEFAULT_COLLECTION_CATEGORY_IDS;
+  } catch {
+    return DEFAULT_COLLECTION_CATEGORY_IDS;
+  }
+}
+
+function collectionCategoryIdFor(category: string) {
+  const override = collectionCategoryId();
+  if (override) return override;
+
+  const key = category.trim().toLowerCase();
+  return configuredCollectionCategoryIds()[key] ?? null;
+}
+
 const CRC_TABLE = (() => {
   const table = new Uint32Array(256);
   for (let i = 0; i < 256; i += 1) {
@@ -195,10 +228,10 @@ async function uploadCollectionArchive(apiKey: string, filename: string, manifes
   return upload.id;
 }
 
-async function updateCollectionDetails(apiKey: string, collectionId: string, draft: CollectionDraft) {
+async function updateCollectionDetails(apiKey: string, collectionId: string, draft: CollectionDraft, categoryId: number | null) {
   const body: Record<string, unknown> = {
     name: draft.title.trim().slice(0, 36),
-    category_id: collectionCategoryId()
+    category_id: categoryId
   };
 
   if (!draft.preserveDescription) {
@@ -249,6 +282,7 @@ export async function publishCollection(apiKey: string, draft: CollectionDraft):
 
   const manifest = buildCollectionManifest(enrichedDraft);
   const nexusPayload = buildNexusCollectionPayload(enrichedDraft);
+  const categoryId = collectionCategoryIdFor(enrichedDraft.category);
 
   if (isMockMode()) {
     return {
@@ -258,6 +292,7 @@ export async function publishCollection(apiKey: string, draft: CollectionDraft):
       revisionId: `mock-rev-${Date.now()}`,
       uploadId: `mock-upload-${Date.now()}`,
       collectionUrl: `https://next.nexusmods.com/${enrichedDraft.game}/collections/mock-${Date.now()}`,
+      categoryId,
       manifest
     };
   }
@@ -281,7 +316,7 @@ export async function publishCollection(apiKey: string, draft: CollectionDraft):
   const createdCollectionId = String(created.collection_id ?? created.collectionId ?? created.id ?? collectionId ?? '');
   const collectionUrl = slug ? `https://next.nexusmods.com/${enrichedDraft.game}/collections/${slug}` : undefined;
   if (createdCollectionId) {
-    await updateCollectionDetails(apiKey, createdCollectionId, enrichedDraft);
+    await updateCollectionDetails(apiKey, createdCollectionId, enrichedDraft, categoryId);
   }
 
   return {
@@ -291,6 +326,7 @@ export async function publishCollection(apiKey: string, draft: CollectionDraft):
     collectionUrl: created.url ?? created.collection_url ?? created.collectionUrl ?? collectionUrl,
     revisionId: String(created.revision_id ?? created.revisionId ?? created.id ?? ''),
     uploadId,
+    categoryId,
     manifest
   };
 }

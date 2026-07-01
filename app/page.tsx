@@ -742,7 +742,7 @@ export default function Home() {
 
             <div className="api-form-copy">
               <h2>Validate your Nexus API Key</h2>
-              <p>Use your personal API key to browse files, create/edit and publish collections.</p>
+              <p>Use your API key to browse files, create/edit and publish collections.</p>
             </div>
 
             <div className="field">

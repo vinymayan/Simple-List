@@ -32,6 +32,9 @@ export const metadata: Metadata = {
     title: 'Simple Collection Manager',
     description: 'Create, edit, and publish Nexus Mods collections from the browser.',
     images: ['/social-thumb.jpg']
+  },
+  other: {
+    'google-adsense-account': 'ca-pub-4143553417003850'
   }
 };
 

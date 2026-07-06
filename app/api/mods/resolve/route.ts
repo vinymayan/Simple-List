@@ -1,18 +1,18 @@
 import { NextResponse } from 'next/server';
-import { getApiKeyFromCookie } from '@/lib/session';
+import { getNexusAccessToken } from '@/lib/oauth-session';
 import { extractNexusModUrl, getMod } from '@/lib/nexus';
 
 export async function GET(request: Request) {
   try {
-    const apiKey = await getApiKeyFromCookie();
-    if (!apiKey) return NextResponse.json({ message: 'Not authenticated.' }, { status: 401 });
+    const accessToken = await getNexusAccessToken();
+    if (!accessToken) return NextResponse.json({ message: 'Not authenticated.' }, { status: 401 });
 
     const url = new URL(request.url);
     const value = url.searchParams.get('url') || '';
     const parsed = extractNexusModUrl(value);
     if (!parsed) return NextResponse.json({ message: 'Invalid Nexus mod URL.' }, { status: 400 });
 
-    const mod = await getMod(apiKey, parsed.game, parsed.modId);
+    const mod = await getMod(accessToken, parsed.game, parsed.modId);
     return NextResponse.json({ mod });
   } catch (error: any) {
     return NextResponse.json(

@@ -181,10 +181,10 @@ function buildCollectionArchive(manifest: unknown) {
   return Buffer.concat([local, centralDir, end]);
 }
 
-async function uploadCollectionArchive(apiKey: string, filename: string, manifest: unknown) {
+async function uploadCollectionArchive(accessToken: string, filename: string, manifest: unknown) {
   const bytes = buildCollectionArchive(manifest);
   const upload = dataOf<{ id: string; presigned_url: string }>(await nexusFetch(`${V3_BASE}/uploads`, {
-    apiKey,
+    accessToken,
     method: 'POST',
     body: {
       filename,
@@ -221,14 +221,14 @@ async function uploadCollectionArchive(apiKey: string, filename: string, manifes
   }
 
   await nexusFetch(`${V3_BASE}/uploads/${encodeURIComponent(upload.id)}/finalise`, {
-    apiKey,
+    accessToken,
     method: 'POST'
   });
 
   return upload.id;
 }
 
-async function updateCollectionDetails(apiKey: string, collectionId: string, draft: CollectionDraft, categoryId: number | null) {
+async function updateCollectionDetails(accessToken: string, collectionId: string, draft: CollectionDraft, categoryId: number | null) {
   const body: Record<string, unknown> = {
     name: draft.title.trim().slice(0, 36),
     category_id: categoryId
@@ -240,20 +240,20 @@ async function updateCollectionDetails(apiKey: string, collectionId: string, dra
   }
 
   await nexusFetch(`${V3_BASE}/collections/${encodeURIComponent(collectionId)}`, {
-    apiKey,
+    accessToken,
     method: 'PATCH',
     body
   });
 }
 
-async function refreshFileMetadata(apiKey: string, draft: CollectionDraft): Promise<CollectionDraft> {
+async function refreshFileMetadata(accessToken: string, draft: CollectionDraft): Promise<CollectionDraft> {
   const cache = new Map<string, Awaited<ReturnType<typeof getModFiles>>>();
   const items = await Promise.all(draft.items.map(async (item) => {
     if (!item.fileId) return item;
 
     const key = `${item.game}:${item.modId}`;
     if (!cache.has(key)) {
-      cache.set(key, await getModFiles(apiKey, item.game, item.modId));
+      cache.set(key, await getModFiles(accessToken, item.game, item.modId));
     }
 
     const files = cache.get(key) || [];
@@ -273,8 +273,8 @@ async function refreshFileMetadata(apiKey: string, draft: CollectionDraft): Prom
   return { ...draft, items };
 }
 
-export async function publishCollection(apiKey: string, draft: CollectionDraft): Promise<PublishResult> {
-  const enrichedDraft = await refreshFileMetadata(apiKey, draft);
+export async function publishCollection(accessToken: string, draft: CollectionDraft): Promise<PublishResult> {
+  const enrichedDraft = await refreshFileMetadata(accessToken, draft);
   const errors = validateDraftForPublish(enrichedDraft);
   if (errors.length) {
     return { ok: false, message: errors.join(' ') };
@@ -298,13 +298,13 @@ export async function publishCollection(apiKey: string, draft: CollectionDraft):
   }
 
   const filename = `${enrichedDraft.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'collection'}.zip`;
-  const uploadId = await uploadCollectionArchive(apiKey, filename, manifest);
+  const uploadId = await uploadCollectionArchive(accessToken, filename, manifest);
   const collectionId = enrichedDraft.id?.trim();
   const endpoint = collectionId
     ? `${V3_BASE}/collections/${encodeURIComponent(collectionId)}/revisions`
     : `${V3_BASE}/collections`;
   const created = dataOf<any>(await nexusFetch<any>(endpoint, {
-    apiKey,
+    accessToken,
     method: 'POST',
     body: {
       upload_id: uploadId,
@@ -316,7 +316,7 @@ export async function publishCollection(apiKey: string, draft: CollectionDraft):
   const createdCollectionId = String(created.collection_id ?? created.collectionId ?? created.id ?? collectionId ?? '');
   const collectionUrl = slug ? `https://next.nexusmods.com/${enrichedDraft.game}/collections/${slug}` : undefined;
   if (createdCollectionId) {
-    await updateCollectionDetails(apiKey, createdCollectionId, enrichedDraft, categoryId);
+    await updateCollectionDetails(accessToken, createdCollectionId, enrichedDraft, categoryId);
   }
 
   return {
@@ -331,7 +331,7 @@ export async function publishCollection(apiKey: string, draft: CollectionDraft):
   };
 }
 
-export async function listUserCollections(apiKey: string): Promise<{ collections: UserCollection[]; source: string; message?: string }> {
+export async function listUserCollections(accessToken: string): Promise<{ collections: UserCollection[]; source: string; message?: string }> {
   if (isMockMode()) {
     return {
       source: 'mock',
@@ -360,6 +360,6 @@ export async function listUserCollections(apiKey: string): Promise<{ collections
   }
 
   const url = renderTemplate(template, { base: V3_BASE });
-  const raw = await nexusFetch<any>(url, { apiKey });
+  const raw = await nexusFetch<any>(url, { accessToken });
   return { source: 'api', collections: normalizeCollectionList(raw) };
 }

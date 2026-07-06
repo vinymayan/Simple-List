@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server';
-import { getApiKeyFromCookie } from '@/lib/session';
+import { getNexusAccessToken } from '@/lib/oauth-session';
 import { searchMods } from '@/lib/nexus';
 
 export async function GET(request: Request) {
   try {
-    const apiKey = await getApiKeyFromCookie();
-    if (!apiKey) return NextResponse.json({ message: 'Not authenticated.' }, { status: 401 });
+    const accessToken = await getNexusAccessToken();
+    if (!accessToken) return NextResponse.json({ message: 'Not authenticated.' }, { status: 401 });
 
     const url = new URL(request.url);
     const game = url.searchParams.get('game') || 'skyrimspecialedition';
@@ -14,7 +14,7 @@ export async function GET(request: Request) {
     const sort = url.searchParams.get('sort') || 'endorsements';
     const category = url.searchParams.get('category') || 'all';
 
-    const result = await searchMods(apiKey, { game, q, page, sort, category });
+    const result = await searchMods(accessToken, { game, q, page, sort, category });
     return NextResponse.json(result);
   } catch (error: any) {
     return NextResponse.json(

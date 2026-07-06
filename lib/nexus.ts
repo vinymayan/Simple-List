@@ -15,7 +15,7 @@ export class NexusApiError extends Error {
 }
 
 type FetchOptions = {
-  apiKey: string;
+  accessToken: string;
   method?: string;
   body?: unknown;
   headers?: Record<string, string>;
@@ -30,7 +30,7 @@ export async function nexusFetch<T>(urlOrPath: string, options: FetchOptions): P
   const response = await fetch(url, {
     method: options.method || 'GET',
     headers: {
-      apikey: options.apiKey,
+      Authorization: `Bearer ${options.accessToken}`,
       Accept: 'application/json',
       ...(options.body ? { 'Content-Type': 'application/json' } : {}),
       ...options.headers
@@ -251,40 +251,33 @@ function parseFileSizeBytes(file: any): number | undefined {
   return undefined;
 }
 
-export async function validateApiKey(apiKey: string): Promise<any> {
-  if (isMockMode()) {
-    return { name: 'Mock User', user_id: 1, is_premium: true };
-  }
-  return nexusFetch('/users/validate.json', { apiKey });
-}
-
-export async function getMod(apiKey: string, game: string, modId: number): Promise<ModSummary> {
+export async function getMod(accessToken: string, game: string, modId: number): Promise<ModSummary> {
   if (isMockMode()) {
     const item = MOCK_MODS.find((mod) => mod.game === game && mod.modId === modId) || MOCK_MODS[0];
     return { ...item, game, modId };
   }
 
-  const raw = await nexusFetch<any>(`/games/${encodeURIComponent(game)}/mods/${modId}.json`, { apiKey });
+  const raw = await nexusFetch<any>(`/games/${encodeURIComponent(game)}/mods/${modId}.json`, { accessToken });
   return normalizeMod(game, raw);
 }
 
-export async function getModFiles(apiKey: string, game: string, modId: number): Promise<ModFile[]> {
+export async function getModFiles(accessToken: string, game: string, modId: number): Promise<ModFile[]> {
   if (isMockMode()) {
     return MOCK_FILES[modId] || MOCK_DEFAULT_FILES;
   }
 
-  const raw = await nexusFetch<any>(`/games/${encodeURIComponent(game)}/mods/${modId}/files.json`, { apiKey });
+  const raw = await nexusFetch<any>(`/games/${encodeURIComponent(game)}/mods/${modId}/files.json`, { accessToken });
   return normalizeFiles(raw);
 }
 
-async function searchTrendingMods(apiKey: string, params: {
+async function searchTrendingMods(accessToken: string, params: {
   game: string;
   q: string;
   page: number;
   sort?: string;
   category?: string;
 }): Promise<{ results: ModSummary[]; page: number; total?: number; source: 'trending-fallback' }> {
-  const raw = await nexusFetch<any>(`${V3_BASE}/games/${encodeURIComponent(params.game)}/trending-mods`, { apiKey });
+  const raw = await nexusFetch<any>(`${V3_BASE}/games/${encodeURIComponent(params.game)}/trending-mods`, { accessToken });
   const mods = normalizeModListPayload(raw)
     .map((item: any) => normalizeMod(params.game, item))
     .filter((mod) => Number.isFinite(mod.modId) && mod.modId > 0);
@@ -298,7 +291,7 @@ async function searchTrendingMods(apiKey: string, params: {
   };
 }
 
-export async function searchMods(apiKey: string, params: {
+export async function searchMods(accessToken: string, params: {
   game: string;
   q: string;
   page: number;
@@ -309,7 +302,7 @@ export async function searchMods(apiKey: string, params: {
   const exact = extractNexusModUrl(q) || (/^\d+$/.test(q.trim()) ? { game, modId: Number(q.trim()) } : null);
 
   if (exact) {
-    const mod = await getMod(apiKey, exact.game || game, exact.modId);
+    const mod = await getMod(accessToken, exact.game || game, exact.modId);
     return { results: [mod], page: 1, total: 1 };
   }
 
@@ -321,7 +314,7 @@ export async function searchMods(apiKey: string, params: {
 
   const template = process.env.NEXUS_SEARCH_URL_TEMPLATE;
   if (!template) {
-    return searchTrendingMods(apiKey, { game, q, page, sort, category });
+    return searchTrendingMods(accessToken, { game, q, page, sort, category });
   }
 
   const url = template
@@ -332,7 +325,7 @@ export async function searchMods(apiKey: string, params: {
     .replaceAll('{sort}', encodeURIComponent(sort || 'endorsements'))
     .replaceAll('{category}', encodeURIComponent(category || ''));
 
-  const raw = await nexusFetch<any>(url, { apiKey });
+  const raw = await nexusFetch<any>(url, { accessToken });
   const list = normalizeModListPayload(raw);
   return {
     results: list.map((item: any) => normalizeMod(game, item)),

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
-import { clearApiKeyCookie } from '@/lib/session';
+import { clearOAuthSession } from '@/lib/oauth-session';
 
 export async function POST() {
-  await clearApiKeyCookie();
+  await clearOAuthSession();
   return NextResponse.json({ ok: true });
 }

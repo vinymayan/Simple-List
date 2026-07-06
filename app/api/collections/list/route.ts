@@ -1,13 +1,13 @@
 import { NextResponse } from 'next/server';
-import { getApiKeyFromCookie } from '@/lib/session';
+import { getNexusAccessToken } from '@/lib/oauth-session';
 import { listUserCollections } from '@/lib/nexus-collections';
 
 export async function GET() {
   try {
-    const apiKey = await getApiKeyFromCookie();
-    if (!apiKey) return NextResponse.json({ message: 'Not authenticated.' }, { status: 401 });
+    const accessToken = await getNexusAccessToken();
+    if (!accessToken) return NextResponse.json({ message: 'Not authenticated.' }, { status: 401 });
 
-    const result = await listUserCollections(apiKey);
+    const result = await listUserCollections(accessToken);
     return NextResponse.json(result);
   } catch (error: any) {
     return NextResponse.json(

@@ -6,6 +6,9 @@
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
   "vars": {
     "NEXT_PUBLIC_SITE_URL": "https://scm.vinymods.com.br",
+    "NEXUS_OAUTH_REDIRECT_URI": "https://scm.vinymods.com.br/api/auth/nexus/callback",
+    "NEXUS_OAUTH_AUTH_URL": "https://users.nexusmods.com/oauth/authorize",
+    "NEXUS_OAUTH_TOKEN_URL": "https://users.nexusmods.com/oauth/token",
     "NEXUS_COLLECTION_CATEGORY_IDS": "{\"Total Overhaul\":1,\"Themed\":2,\"Vanilla Plus\":3,\"Essentials\":4,\"Miscellaneous\":5}"
   },
   "assets": {

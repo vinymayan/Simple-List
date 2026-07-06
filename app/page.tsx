@@ -10,7 +10,6 @@ import {
   X,
   Copy,
   Eye,
-  ExternalLink,
   FileJson,
   GripVertical,
   Loader2,
@@ -43,6 +42,13 @@ type OpenedModDetails = {
   selectedFileIds: number[];
   collapsed?: boolean;
   error?: string;
+};
+
+type AuthSessionPayload = {
+  authenticated: boolean;
+  user?: unknown;
+  expiresAt?: number | null;
+  message?: string;
 };
 
 const DEFAULT_GAME = 'skyrimspecialedition';
@@ -178,12 +184,11 @@ function managerCollectionKey(collection: UserCollection) {
 
 export default function Home() {
   const [view, setView] = useState<View>('login');
-  const [apiKey, setApiKey] = useState('');
   const [featuredMods, setFeaturedMods] = useState<FeaturedMod[]>(FEATURED_MODS);
   const [featuredIndex, setFeaturedIndex] = useState(0);
   const [featuredAutoplay, setFeaturedAutoplay] = useState(true);
   const [authed, setAuthed] = useState(false);
-  const [auth, setAuth] = useState<ApiState<any>>({ loading: false, error: '' });
+  const [auth, setAuth] = useState<ApiState<AuthSessionPayload>>({ loading: true, error: '' });
   const [games, setGames] = useState<Game[]>([]);
   const [selectedGame, setSelectedGame] = useState(DEFAULT_GAME);
   const [editingCollection, setEditingCollection] = useState<UserCollection | null>(null);
@@ -214,6 +219,33 @@ export default function Home() {
 
   useEffect(() => {
     api<{ games: Game[] }>('/api/games').then((res) => setGames(res.games)).catch(() => undefined);
+  }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const authError = params.get('auth_error');
+    if (authError) {
+      setAuth({ loading: false, error: `Nexus OAuth failed: ${authError}` });
+      window.history.replaceState({}, '', window.location.pathname);
+      return;
+    }
+
+    api<AuthSessionPayload>('/api/auth/session')
+      .then((session) => {
+        if (session.authenticated) {
+          setAuthed(true);
+          setAuth({ loading: false, error: '', data: session });
+          setView('dashboard');
+          return;
+        }
+
+        setAuthed(false);
+        setAuth({ loading: false, error: '' });
+      })
+      .catch((error: any) => {
+        setAuthed(false);
+        setAuth({ loading: false, error: error.message || 'Could not load OAuth session.' });
+      });
   }, []);
 
   useEffect(() => {
@@ -305,25 +337,15 @@ export default function Home() {
     items: collection.map((item, index) => ({ ...item, installOrder: index + 1 }))
   }), [draftMeta, selectedGame, collection, editingCollection]);
 
-  async function validateKey() {
+  function startOAuthLogin() {
     setAuth({ loading: true, error: '' });
-    try {
-      const result = await api<any>('/api/auth/validate-key', {
-        method: 'POST',
-        body: JSON.stringify({ apiKey })
-      });
-      setAuthed(true);
-      setAuth({ loading: false, error: '', data: result.user });
-      setView('dashboard');
-    } catch (error: any) {
-      setAuth({ loading: false, error: error.message || 'Invalid API key.' });
-    }
+    window.location.assign('/api/auth/nexus/start?returnTo=/');
   }
 
   async function logout() {
     await api('/api/auth/logout', { method: 'POST' }).catch(() => undefined);
     setAuthed(false);
-    setApiKey('');
+    setAuth({ loading: false, error: '' });
     setView('login');
   }
 
@@ -741,33 +763,15 @@ export default function Home() {
             </div>
 
             <div className="api-form-copy">
-              <h2>Validate your Nexus API Key</h2>
-              <p>Use your API key to browse files, create/edit and publish collections.</p>
+              <h2>Connect your Nexus Mods account</h2>
+              <p>Use your Nexus account to browse files, create/edit and publish collections.</p>
             </div>
 
-            <div className="field">
-              <label className="label">Nexus API Key</label>
-              <div className="api-key-field">
-                <input
-                  className="input"
-                  type="password"
-                  placeholder="Paste your API key"
-                  value={apiKey}
-                  onChange={(event) => setApiKey(event.target.value)}
-                  onKeyDown={(event) => event.key === 'Enter' && validateKey()}
-                />
-                <Eye size={18} />
-              </div>
-            </div>
-            <button className="btn btn-primary full api-submit" disabled={auth.loading || !apiKey.trim()} onClick={validateKey}>
+            <button className="btn btn-primary full api-submit" disabled={auth.loading} onClick={startOAuthLogin}>
               {auth.loading ? <Loader2 size={16} className="spin" /> : <HydrationSafeIcon><ShieldCheck size={16} /></HydrationSafeIcon>}
-              Validate API Key
+              Continue with Nexus Mods
             </button>
             {auth.error ? <div className="error">{auth.error}</div> : null}
-
-            <a className="api-key-link" href="https://www.nexusmods.com/users/myaccount?tab=api%20access" target="_blank" rel="noreferrer">
-              Need an API key? <span>Get it from Nexus Mods</span> <ExternalLink size={16} />
-            </a>
 
             <div className="external-links">
               <a href="https://www.patreon.com/c/xyzeroyx" target="_blank" rel="noreferrer">

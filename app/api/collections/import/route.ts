@@ -57,8 +57,9 @@ function extractCollectionJsonFromZip(buffer: Buffer) {
 }
 
 async function extractCollectionJsonWith7z(buffer: Buffer, requestUrl: string) {
+  const loadSevenZip = new Function('specifier', 'return import(specifier)') as (specifier: string) => Promise<typeof import('7z-wasm')>;
   const [{ default: SevenZip }, wasmResponse] = await Promise.all([
-    import('7z-wasm'),
+    loadSevenZip('7z-wasm'),
     fetch(new URL('/7zz.wasm', requestUrl))
   ]);
 

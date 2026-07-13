@@ -4,6 +4,13 @@ const BASE = process.env.NEXUS_API_BASE || 'https://api.nexusmods.com/v1';
 const V3_BASE = process.env.NEXUS_API_V3_BASE || 'https://api.nexusmods.com/v3';
 const APPLICATION_NAME = process.env.NEXUS_APPLICATION_NAME || 'Simple Collection Manager';
 const APPLICATION_VERSION = process.env.NEXUS_APPLICATION_VERSION || '0.1.0';
+const NEXUS_REQUEST_TIMEOUT_MS = 10_000;
+const APPROVED_NEXUS_HOSTS = new Set(
+  (process.env.NEXUS_ALLOWED_API_HOSTS || 'api.nexusmods.com')
+    .split(',')
+    .map((host) => host.trim().toLowerCase())
+    .filter(Boolean)
+);
 
 export class NexusApiError extends Error {
   status: number;
@@ -27,8 +34,17 @@ export function isMockMode(): boolean {
   return process.env.NEXUS_MOCK_MODE === 'true';
 }
 
+export function approvedNexusUrl(urlOrPath: string): URL {
+  const url = new URL(urlOrPath, `${BASE.replace(/\/$/, '')}/`);
+  if (url.protocol !== 'https:' || (url.port && url.port !== '443') || !APPROVED_NEXUS_HOSTS.has(url.hostname.toLowerCase())) {
+    throw new NexusApiError('Refusing to send a Nexus bearer token to an unapproved host.', 500);
+  }
+  if (url.username || url.password) throw new NexusApiError('Nexus API URLs must not contain embedded credentials.', 500);
+  return url;
+}
+
 export async function nexusFetch<T>(urlOrPath: string, options: FetchOptions): Promise<T> {
-  const url = urlOrPath.startsWith('http') ? urlOrPath : `${BASE}${urlOrPath}`;
+  const url = approvedNexusUrl(urlOrPath.startsWith('/') ? `${BASE}${urlOrPath}` : urlOrPath);
   const response = await fetch(url, {
     method: options.method || 'GET',
     headers: {
@@ -40,7 +56,9 @@ export async function nexusFetch<T>(urlOrPath: string, options: FetchOptions): P
       ...options.headers
     },
     body: options.body ? JSON.stringify(options.body) : undefined,
-    cache: 'no-store'
+    cache: 'no-store',
+    redirect: 'error',
+    signal: AbortSignal.timeout(NEXUS_REQUEST_TIMEOUT_MS)
   });
 
   const text = await response.text();

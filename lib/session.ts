@@ -1,7 +1,10 @@
 import crypto from 'node:crypto';
 
 function getSecret(): Buffer {
-  const raw = process.env.NEXUS_SESSION_SECRET || 'dev-secret-change-me-change-me-32-chars';
+  const raw = process.env.NEXUS_SESSION_SECRET;
+  if (!raw || raw.length < 32) {
+    throw new Error('NEXUS_SESSION_SECRET must be configured with at least 32 characters.');
+  }
   return crypto.createHash('sha256').update(raw).digest();
 }
 

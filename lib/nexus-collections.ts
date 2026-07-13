@@ -3,6 +3,7 @@ import { buildCollectionManifest, buildNexusCollectionPayload, validateDraftForP
 import type { CollectionDraft, PublishResult, UserCollection } from './types';
 
 const V3_BASE = process.env.NEXUS_API_V3_BASE || 'https://api.nexusmods.com/v3';
+const UPLOAD_TIMEOUT_MS = 30_000;
 
 function dataOf<T>(payload: any): T {
   return (payload?.data ?? payload) as T;
@@ -202,7 +203,8 @@ async function uploadCollectionArchive(accessToken: string, filename: string, ma
       'Content-Disposition': `attachment; filename="${filename}"`,
       'Content-Type': 'application/octet-stream'
     },
-    body: bytes
+    body: bytes,
+    signal: AbortSignal.timeout(UPLOAD_TIMEOUT_MS)
   });
 
   if (!putResponse.ok) {

@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { FEATURED_MODS, type FeaturedMod } from '@/lib/featured-mods';
 import type { CollectionDraft, CollectionItem, Game, ModFile, ModSummary, PublishResult, UserCollection } from '@/lib/types';
+import { PrivacyContent, TermsContent } from './legal-content';
 
 type ApiState<T> = {
   loading: boolean;
@@ -55,6 +56,7 @@ const DEFAULT_GAME = 'skyrimspecialedition';
 const SAVED_COLLECTIONS_KEY = 'ncb_saved_collections';
 const HIDDEN_COLLECTIONS_KEY = 'ncb_hidden_collections';
 const COLLECTION_CATEGORIES = ['Total Overhaul', 'Themed', 'Vanilla Plus', 'Essentials', 'Miscellaneous'];
+const BROWSER_REQUEST_TIMEOUT_MS = 15_000;
 
 function HydrationSafeIcon({ children }: { children: ReactNode }) {
   const [mounted, setMounted] = useState(false);
@@ -121,12 +123,14 @@ function createCollectionItem(mod: ModSummary, file: ModFile, installOrder = 1):
 }
 
 async function api<T>(url: string, init?: RequestInit): Promise<T> {
+  const timeout = AbortSignal.timeout(BROWSER_REQUEST_TIMEOUT_MS);
   const response = await fetch(url, {
     ...init,
     headers: {
       'Content-Type': 'application/json',
       ...(init?.headers || {})
-    }
+    },
+    signal: init?.signal ? AbortSignal.any([init.signal, timeout]) : timeout
   });
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
@@ -432,7 +436,8 @@ export default function Home() {
       form.append('file', file);
       const response = await fetch('/api/collections/import', {
         method: 'POST',
-        body: form
+        body: form,
+        signal: AbortSignal.timeout(BROWSER_REQUEST_TIMEOUT_MS)
       });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(payload.message || 'Could not import collection.');
@@ -847,7 +852,7 @@ export default function Home() {
             <button className="flow-card" onClick={loadMyCollections}>
               <FileJson size={28} />
               <strong>Open my collections</strong>
-              <span>Lists collections available to the validated API key and opens editing.</span>
+              <span>Lists collections available to the connected Nexus Mods account and opens editing.</span>
               <ChevronRight size={18} />
             </button>
             <button className="flow-card" onClick={startCreate}>
@@ -881,7 +886,7 @@ export default function Home() {
       <section className="stage-card collection-stage">
         {renderPageHeading(
           'My collections',
-          'Collections returned for the current API key.',
+          'Collections returned for the connected Nexus Mods account.',
           <button className="btn" onClick={loadMyCollections} disabled={myCollections.loading}>
             {myCollections.loading ? <Loader2 size={16} className="spin" /> : <RefreshCw size={16} />}
             Refresh
@@ -890,8 +895,8 @@ export default function Home() {
         <div className="stage-scroll">
           {myCollections.error ? <div className="error">{myCollections.error}</div> : null}
           <div className="tip collection-import-disclaimer">
-            <strong>Collections added only by link may not load all collection data.</strong> For the best result, import the
-            <strong><code>collection.json</code>, <code>.zip</code>, or <code>.7z</code></strong> file from
+            <strong>Collections added only by link may not include every manifest field.</strong> For the best result, import a
+            <strong><code>collection.json</code> or <code>.zip</code></strong> export (maximum 8 MB) from
             <strong><code>AppData\Roaming\Vortex\downloads\gamename</code></strong>.
           </div>
           <div className="link-collection-panel">
@@ -909,10 +914,10 @@ export default function Home() {
             </button>
             <label className={`btn file-import-btn ${collectionImportState.loading ? 'disabled' : ''}`}>
               {collectionImportState.loading ? <Loader2 size={16} className="spin" /> : <UploadCloud size={16} />}
-              Import JSON/ZIP
+              Import JSON or ZIP
               <input
                 type="file"
-                accept=".json,.zip,.7z,.7zip,application/json,application/zip,application/x-7z-compressed"
+                accept=".json,.zip,application/json,application/zip"
                 disabled={collectionImportState.loading}
                 onChange={(event) => {
                   void importCollectionFile(event.target.files?.[0]);
@@ -968,7 +973,7 @@ export default function Home() {
             </div>
           ) : null}
           {!myCollections.loading && !filteredCollections.length && !myCollections.error ? (
-            <div className="empty">{collections.length ? 'No collections match the current filters.' : 'No collections were returned for this API key.'}</div>
+            <div className="empty">{collections.length ? 'No collections match the current filters.' : 'No collections were returned for this Nexus Mods account.'}</div>
           ) : null}
         </div>
       </section>
@@ -1307,33 +1312,17 @@ export default function Home() {
       <section className="stage-card legal-stage">
         {renderPageHeading(
           isTerms ? 'Terms of Service' : 'Privacy Policy',
-          isTerms ? 'Usage terms for Simple Collection Manager.' : 'How the app handles your session and Nexus API key.'
+          isTerms ? 'Usage terms for Simple Collection Manager.' : 'How the app handles OAuth sessions and Nexus account data.'
         )}
         <div className="stage-scroll">
           <article className="legal-card in-app">
             {isTerms ? (
               <>
-                <p>
-                  Viny Mods provides Simple Collection Manager as an independent tool for organizing collections and
-                  supporting workflows that use the Nexus Mods API.
-                </p>
-                <p>
-                  You are responsible for how you use your API key, the data you submit, and your compliance with the
-                  terms of any external services accessed through the app.
-                </p>
-                <p>This project is not affiliated with, endorsed by, or operated by Nexus Mods.</p>
+                <TermsContent />
               </>
             ) : (
               <>
-                <p>
-                  The API key you provide is used only to validate your session and perform the actions you request inside
-                  the app.
-                </p>
-                <p>
-                  The key is not stored in browser localStorage. It is kept in an encrypted HttpOnly cookie for the
-                  session configured by the application.
-                </p>
-                <p>Viny Mods does not sell personal data and does not represent Nexus Mods.</p>
+                <PrivacyContent />
               </>
             )}
           </article>

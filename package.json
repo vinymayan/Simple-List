@@ -8,21 +8,24 @@
     "cf:build": "opennextjs-cloudflare build",
     "cf:deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
     "start": "next start",
-    "lint": "next lint"
+    "check": "tsc --noEmit",
+    "lint": "tsc --noEmit"
   },
   "dependencies": {
-    "@types/node": "latest",
-    "@types/react": "latest",
-    "@types/react-dom": "latest",
-    "7z-wasm": "^1.2.0",
-    "lucide-react": "latest",
-    "next": "latest",
-    "react": "latest",
-    "react-dom": "latest",
-    "typescript": "latest"
+    "@types/node": "26.0.1",
+    "@types/react": "19.2.17",
+    "@types/react-dom": "19.2.3",
+    "lucide-react": "1.22.0",
+    "next": "16.2.9",
+    "react": "19.2.7",
+    "react-dom": "19.2.7",
+    "typescript": "6.0.3"
   },
   "devDependencies": {
-    "@opennextjs/cloudflare": "^1.20.1",
-    "wrangler": "^4.105.0"
+    "@opennextjs/cloudflare": "1.20.1",
+    "wrangler": "4.105.0"
+  },
+  "overrides": {
+    "postcss": "8.5.17"
   }
 }

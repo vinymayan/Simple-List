@@ -9,6 +9,8 @@
     "NEXUS_OAUTH_REDIRECT_URI": "https://scm.vinymods.com.br/api/auth/nexus/callback",
     "NEXUS_OAUTH_AUTH_URL": "https://users.nexusmods.com/oauth/authorize",
     "NEXUS_OAUTH_TOKEN_URL": "https://users.nexusmods.com/oauth/token",
+    "NEXUS_ALLOWED_OAUTH_HOSTS": "users.nexusmods.com",
+    "NEXUS_ALLOWED_API_HOSTS": "api.nexusmods.com",
     "NEXUS_APPLICATION_NAME": "Simple Collection Manager",
     "NEXUS_APPLICATION_VERSION": "0.1.0",
     "NEXUS_COLLECTION_CATEGORY_IDS": "{\"Total Overhaul\":1,\"Themed\":2,\"Vanilla Plus\":3,\"Essentials\":4,\"Miscellaneous\":5}"

@@ -1,168 +1,118 @@
-# Nexus Collection Builder
+# Simple Collection Manager
 
-MVP em Next.js para criar uma interface web onde o usuário valida uma Nexus API Key, busca mods, vê detalhes, escolhe arquivos/versões, monta uma collection e gera/publica um manifesto.
+Simple Collection Manager is an independent Next.js application for assembling, importing, reviewing, and publishing
+Nexus Mods collections. Users connect with Nexus Mods OAuth 2.0 using Authorization Code + PKCE; API credentials are
+never entered into or exposed to browser JavaScript.
 
-## O que já está implementado
+This project is not affiliated with, endorsed by, or operated by Nexus Mods.
 
-- Site em Next.js/React com tema dark roxo inspirado na UI planejada.
-- Entrada de API Key com armazenamento em cookie `HttpOnly` criptografado.
-- Seleção de jogo por `game_domain_name`.
-- Busca de mods por URL/ID e busca textual configurável.
-- Cards com thumb, nome, autor, downloads, endorsements e versão.
-- Tela de detalhes do mod.
-- Modal de seleção de arquivos: Main, Optional, Old e Misc.
-- Builder da collection com install order, status e remoção.
-- Geração de manifesto JSON da collection.
-- Endpoint isolado para publicação da Collection.
-- Mock mode para testar a UI sem usar Nexus API real.
+## Features
 
-## Telas do app
+- Nexus Mods OAuth sign-in with PKCE, encrypted server-side token storage, refresh-token rotation, and logout revocation
+  of the local session.
+- Mod search, Nexus URL resolution, file/version selection, and collection installation ordering.
+- Bounded `collection.json` and ZIP import.
+- Nexus collection manifest generation and publishing through the connected account.
+- Local browser storage for editable collection drafts and preferences.
+- Mock mode for UI development without live Nexus requests.
 
-1. Entrada / API Key
-2. Escolher jogo
-3. Buscar mods
-4. Detalhes do mod
-5. Selecionar arquivo
-6. Minha Collection
-7. Publicar Collection
-8. Resultado da publicação
+## Requirements
 
-## Rodando localmente
+- Node.js 22 and npm 10+
+- Cloudflare Workers/OpenNext and a D1 database for OAuth sessions
+- A Nexus Mods OAuth application and registered callback URL
+- A unique random `NEXUS_SESSION_SECRET` of at least 32 characters
+
+## Local setup
 
 ```bash
-npm install
+npm ci
 cp .env.example .env.local
 npm run dev
 ```
 
-Abra:
+Fill in the OAuth client ID and a unique session secret in `.env.local`. The application intentionally has no fallback
+secret. A regular Next.js development server does not expose the Cloudflare D1 binding; use mock mode for UI-only work
+or `wrangler`/OpenNext when testing a real OAuth session.
 
-```txt
-http://localhost:3000
+## Configuration
+
+| Variable | Required | Purpose |
+| --- | --- | --- |
+| `NEXUS_SESSION_SECRET` | Yes | Encrypts OAuth tokens and temporary OAuth state; minimum 32 characters. |
+| `NEXUS_OAUTH_CLIENT_ID` | Yes | Public Nexus OAuth client identifier. |
+| `NEXUS_OAUTH_CLIENT_SECRET` | If issued | Confidential client secret; store only as a platform secret. |
+| `NEXUS_OAUTH_REDIRECT_URI` | Production | Exact callback registered with Nexus Mods. |
+| `NEXUS_OAUTH_AUTH_URL` | No | Defaults to `https://users.nexusmods.com/oauth/authorize`. |
+| `NEXUS_OAUTH_TOKEN_URL` | No | Defaults to `https://users.nexusmods.com/oauth/token`. |
+| `NEXUS_ALLOWED_OAUTH_HOSTS` | No | Exact HTTPS OAuth host allowlist; defaults to `users.nexusmods.com`. |
+| `NEXUS_API_BASE` / `NEXUS_API_V3_BASE` | No | Nexus API bases. |
+| `NEXUS_ALLOWED_API_HOSTS` | No | Exact HTTPS Bearer-token host allowlist; defaults to `api.nexusmods.com`. |
+| `NEXUS_MOCK_MODE` | No | Uses sample data when `true`. |
+| `NEXT_PUBLIC_SITE_URL` | Production | Canonical public origin used by OAuth redirects. |
+
+Optional collection/search templates and category variables are documented in `.env.example`. Templates cannot bypass
+the HTTPS host allowlist.
+
+## D1 setup
+
+Apply every migration before deploying the OAuth application:
+
+```bash
+npx wrangler d1 migrations apply collection-manager --remote
 ```
 
-Por padrão o `.env.example` usa:
+OAuth access and refresh tokens are encrypted before being written to D1. The browser receives only a random HttpOnly,
+`SameSite=Lax` session ID. Sessions have an absolute 30-day lifetime; expired rows are deleted automatically during
+session access, and logout removes both the D1 row and cookies.
 
-```env
-NEXUS_MOCK_MODE="true"
+## Security controls
+
+- OAuth state and PKCE verifier are stored in an encrypted HttpOnly cookie for at most 10 minutes. `returnTo` accepts
+  only same-origin absolute paths.
+- Bearer tokens can only be sent to exact approved Nexus HTTPS hosts on port 443. OAuth client data has a separate exact
+  host allowlist.
+- Nexus and OAuth requests time out after 10 seconds; signed archive uploads time out after 30 seconds.
+- Imports accept JSON or ZIP files up to 8 MB. Manifests are limited to 2 MB and 2,000 items. ZIP64, encrypted,
+  multi-volume, excessive-entry, duplicate-manifest, high-ratio, and unsupported-compression archives are rejected.
+- State-changing API calls require the same browser origin. API routes have body limits and per-client rate limits.
+- Responses include CSP, HSTS, clickjacking, MIME-sniffing, referrer, opener, and permissions protections.
+
+The application rate limiter is per worker instance. Add a distributed Cloudflare rate-limit rule for high-volume public
+traffic.
+
+## Validation and deployment
+
+```bash
+npm run check
+npm run build
+npm run cf:build
+npm audit --omit=dev
 ```
 
-Assim o projeto funciona com dados fake para testar a UI.
+Configure these as Cloudflare secrets, never as plain `wrangler.jsonc` variables:
 
-## Usando com Nexus API real
-
-No `.env.local`:
-
-```env
-NEXUS_MOCK_MODE="false"
-NEXUS_SESSION_SECRET="uma-chave-grande-e-aleatoria-com-32-ou-mais-caracteres"
-NEXUS_API_BASE="https://api.nexusmods.com/v1"
+```text
+NEXUS_SESSION_SECRET
+NEXUS_OAUTH_CLIENT_ID
+NEXUS_OAUTH_CLIENT_SECRET (when applicable)
 ```
 
-A validação da API Key usa:
+Then deploy with `npm run cf:deploy`. Review the privacy policy whenever OAuth scopes, hosting, logging, analytics, or
+retention behavior changes.
 
-```txt
-GET /users/validate.json
+## Project map
+
+```text
+app/api/auth/nexus/       OAuth start and callback routes
+lib/oauth-session.ts      PKCE, encrypted D1 sessions, refresh and retention cleanup
+lib/nexus.ts              Restricted Nexus Bearer-token client
+app/api/collections/import Bounded collection importer
+middleware.ts             Same-origin checks, rate limiting and request limits
+migrations/               D1 schema and indexes
 ```
 
-Detalhes do mod usa:
+## License
 
-```txt
-GET /games/{game}/mods/{mod_id}.json
-```
-
-Arquivos do mod usa:
-
-```txt
-GET /games/{game}/mods/{mod_id}/files.json
-```
-
-A busca textual depende do endpoint de search disponível na documentação atual da Nexus. Configure:
-
-```env
-NEXUS_SEARCH_URL_TEMPLATE=""
-```
-
-Placeholders aceitos:
-
-```txt
-{base}
-{game}
-{q}
-{page}
-{sort}
-{category}
-```
-
-Exemplo de uso se a documentação atual definir uma rota de search:
-
-```env
-NEXUS_SEARCH_URL_TEMPLATE="{base}/games/{game}/mods/search.json?terms={q}&page={page}&sort={sort}&category={category}"
-```
-
-> Ajuste essa URL exatamente conforme o endpoint de search da documentação atual.
-
-## Publicação de Collections
-
-A UI gera um manifesto com:
-
-```txt
-game
-mod_id
-file_id
-version
-install_order
-required
-metadata da collection
-```
-
-A publicação real fica isolada em:
-
-```txt
-lib/nexus-collections.ts
-```
-
-Isso é proposital: os endpoints de Collections/Upload podem variar conforme a versão atual da documentação da Nexus. Para ativar publicação real, configure os templates no `.env.local`:
-
-```env
-NEXUS_UPLOAD_SESSION_URL_TEMPLATE=""
-NEXUS_UPLOAD_FINALIZE_URL_TEMPLATE=""
-NEXUS_COLLECTION_CREATE_URL_TEMPLATE=""
-NEXUS_COLLECTION_REVISION_URL_TEMPLATE=""
-NEXUS_COLLECTION_PUBLISH_URL_TEMPLATE=""
-```
-
-No modo mock, clicar em Publish retorna uma URL fake e o manifesto gerado.
-
-## Estrutura
-
-```txt
-app/
-  page.tsx                          UI principal
-  globals.css                       Tema e componentes visuais
-  api/
-    auth/validate-key               Valida API Key
-    auth/logout                     Remove sessão
-    games                           Lista jogos comuns
-    mods/search                     Busca mods
-    mods/resolve                    Resolve link da Nexus
-    mods/[game]/[modId]             Detalhes do mod
-    mods/[game]/[modId]/files       Arquivos do mod
-    collections/manifest            Gera manifesto
-    collections/publish             Publica collection
-lib/
-  nexus.ts                          Cliente Nexus + normalizadores
-  nexus-collections.ts              Camada isolada de publicação
-  manifest.ts                       Geração/validação do manifesto
-  session.ts                        Cookie seguro da API key
-  games.ts                          Jogos pré-cadastrados
-  types.ts                          Tipos compartilhados
-```
-
-## Segurança
-
-- A API Key não fica no `localStorage`.
-- A API Key não é enviada diretamente para a Nexus pelo navegador.
-- Todas as chamadas Nexus passam pelo backend.
-- Em produção, use HTTPS e uma `NEXUS_SESSION_SECRET` forte.
-- Para app público, o ideal é migrar para OAuth/login oficial se a Nexus oferecer esse fluxo.
+No open-source license is currently granted by this repository. Unless a license is added, copyright remains with the
+project owner. Never report security issues with live OAuth codes, tokens, cookies, or personal data.

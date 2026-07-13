@@ -9,6 +9,13 @@ const PENDING_COOKIE = 'nexus_oauth_pending';
 const SESSION_TTL_SECONDS = 60 * 60 * 24 * 30;
 const PENDING_TTL_SECONDS = 60 * 10;
 const REFRESH_WINDOW_SECONDS = 60;
+const OAUTH_REQUEST_TIMEOUT_MS = 10_000;
+const APPROVED_OAUTH_HOSTS = new Set(
+  (process.env.NEXUS_ALLOWED_OAUTH_HOSTS || 'users.nexusmods.com')
+    .split(',')
+    .map((host) => host.trim().toLowerCase())
+    .filter(Boolean)
+);
 
 type D1StatementLike = {
   bind: (...values: unknown[]) => D1StatementLike;
@@ -29,6 +36,7 @@ type OAuthSessionRow = {
   user_id: string | null;
   user_name: string | null;
   user_json: string | null;
+  created_at: number;
 };
 
 export type OAuthTokenResponse = {
@@ -52,6 +60,7 @@ export type PendingOAuthState = {
   state: string;
   codeVerifier: string;
   returnTo: string;
+  createdAt: number;
 };
 
 export type OAuthSession = {
@@ -92,11 +101,20 @@ export function oauthRedirectUri() {
 }
 
 export function oauthAuthUrl() {
-  return process.env.NEXUS_OAUTH_AUTH_URL || 'https://users.nexusmods.com/oauth/authorize';
+  return approvedOAuthUrl(process.env.NEXUS_OAUTH_AUTH_URL || 'https://users.nexusmods.com/oauth/authorize').toString();
 }
 
 export function oauthTokenUrl() {
-  return process.env.NEXUS_OAUTH_TOKEN_URL || 'https://users.nexusmods.com/oauth/token';
+  return approvedOAuthUrl(process.env.NEXUS_OAUTH_TOKEN_URL || 'https://users.nexusmods.com/oauth/token').toString();
+}
+
+function approvedOAuthUrl(value: string) {
+  const url = new URL(value);
+  if (url.protocol !== 'https:' || (url.port && url.port !== '443') || !APPROVED_OAUTH_HOSTS.has(url.hostname.toLowerCase())) {
+    throw new NexusApiError('Refusing to send OAuth data to an unapproved host.', 500);
+  }
+  if (url.username || url.password) throw new NexusApiError('OAuth URLs must not contain embedded credentials.', 500);
+  return url;
 }
 
 export function getOAuthClientId() {
@@ -108,8 +126,16 @@ export function getOAuthClientId() {
 }
 
 export function sanitizeReturnTo(value: string | null) {
-  if (!value || !value.startsWith('/') || value.startsWith('//')) return '/';
-  return value;
+  if (!value || !value.startsWith('/') || value.startsWith('//') || value.includes('\\') || /[\u0000-\u001f]/.test(value)) return '/';
+  try {
+    const decoded = decodeURIComponent(value);
+    if (decoded.startsWith('//') || decoded.includes('\\') || /[\u0000-\u001f]/.test(decoded)) return '/';
+    const base = new URL(oauthBaseUrl());
+    const target = new URL(value, base);
+    return target.origin === base.origin ? `${target.pathname}${target.search}${target.hash}` : '/';
+  } catch {
+    return '/';
+  }
 }
 
 export function createCodeVerifier() {
@@ -124,9 +150,9 @@ export function createCodeChallenge(verifier: string) {
   return crypto.createHash('sha256').update(verifier).digest('base64url');
 }
 
-export async function setPendingOAuthCookie(pending: PendingOAuthState) {
+export async function setPendingOAuthCookie(pending: Omit<PendingOAuthState, 'createdAt'>) {
   const store = await cookies();
-  store.set(PENDING_COOKIE, sealSecret(JSON.stringify(pending)), {
+  store.set(PENDING_COOKIE, sealSecret(JSON.stringify({ ...pending, createdAt: nowSeconds() } satisfies PendingOAuthState)), {
     httpOnly: true,
     sameSite: 'lax',
     secure: secureCookie(),
@@ -140,13 +166,21 @@ export async function getPendingOAuthCookie(): Promise<PendingOAuthState | null>
   const sealed = store.get(PENDING_COOKIE)?.value;
   if (!sealed) return null;
   const raw = unsealSecret(sealed);
-  if (!raw) return null;
+  if (!raw) {
+    store.delete(PENDING_COOKIE);
+    return null;
+  }
 
   try {
     const pending = JSON.parse(raw) as PendingOAuthState;
-    if (!pending.state || !pending.codeVerifier) return null;
+    const age = nowSeconds() - Number(pending.createdAt);
+    if (!pending.state || !pending.codeVerifier || !Number.isFinite(age) || age < -60 || age > PENDING_TTL_SECONDS) {
+      store.delete(PENDING_COOKIE);
+      return null;
+    }
     return pending;
   } catch {
+    store.delete(PENDING_COOKIE);
     return null;
   }
 }
@@ -175,7 +209,9 @@ export async function exchangeOAuthCode(code: string, codeVerifier: string): Pro
       'Content-Type': 'application/x-www-form-urlencoded'
     },
     body,
-    cache: 'no-store'
+    cache: 'no-store',
+    redirect: 'error',
+    signal: AbortSignal.timeout(OAUTH_REQUEST_TIMEOUT_MS)
   });
 
   const payload = await response.json().catch(async () => ({ message: await response.text().catch(() => '') }));
@@ -203,7 +239,9 @@ async function refreshOAuthTokens(refreshToken: string): Promise<OAuthTokenRespo
       'Content-Type': 'application/x-www-form-urlencoded'
     },
     body,
-    cache: 'no-store'
+    cache: 'no-store',
+    redirect: 'error',
+    signal: AbortSignal.timeout(OAUTH_REQUEST_TIMEOUT_MS)
   });
 
   const payload = await response.json().catch(async () => ({ message: await response.text().catch(() => '') }));
@@ -296,16 +334,19 @@ export async function createOAuthSession(tokens: OAuthTokenResponse, user: Nexus
   return id;
 }
 
-async function getSessionIdFromCookie() {
-  const store = await cookies();
-  return store.get(SESSION_COOKIE)?.value || null;
+export async function deleteExpiredOAuthSessions(database?: D1DatabaseLike) {
+  const db = database || await getSessionStore();
+  const cutoff = nowSeconds() - SESSION_TTL_SECONDS;
+  await db.prepare('DELETE FROM oauth_sessions WHERE created_at < ?').bind(cutoff).run();
 }
 
 export async function getOAuthSession(): Promise<OAuthSession | null> {
-  const id = await getSessionIdFromCookie();
+  const store = await cookies();
+  const id = store.get(SESSION_COOKIE)?.value || null;
   if (!id) return null;
 
   const db = await getSessionStore();
+  await deleteExpiredOAuthSessions(db);
   const row = await db.prepare(`
     SELECT
       id,
@@ -315,13 +356,22 @@ export async function getOAuthSession(): Promise<OAuthSession | null> {
       expires_at,
       user_id,
       user_name,
-      user_json
+      user_json,
+      created_at
     FROM oauth_sessions
     WHERE id = ?
   `).bind(id).first<OAuthSessionRow>();
 
-  if (!row) return null;
-  return rowToSession(row);
+  if (!row || row.created_at < nowSeconds() - SESSION_TTL_SECONDS) {
+    store.delete(SESSION_COOKIE);
+    return null;
+  }
+  const session = rowToSession(row);
+  if (!session) {
+    store.delete(SESSION_COOKIE);
+    await db.prepare('DELETE FROM oauth_sessions WHERE id = ?').bind(id).run();
+  }
+  return session;
 }
 
 export async function refreshOAuthSessionIfNeeded(session: OAuthSession): Promise<OAuthSession> {

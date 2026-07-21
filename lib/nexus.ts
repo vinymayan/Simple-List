@@ -2,7 +2,7 @@ import type { ModFile, ModSummary } from './types';
 
 const BASE = process.env.NEXUS_API_BASE || 'https://api.nexusmods.com/v1';
 const V3_BASE = process.env.NEXUS_API_V3_BASE || 'https://api.nexusmods.com/v3';
-const APPLICATION_NAME = process.env.NEXUS_APPLICATION_NAME || 'Simple Collection Manager';
+const APPLICATION_NAME = process.env.NEXUS_APPLICATION_NAME || 'Kairos List Manager';
 const APPLICATION_VERSION = process.env.NEXUS_APPLICATION_VERSION || '0.1.0';
 const NEXUS_REQUEST_TIMEOUT_MS = 10_000;
 const APPROVED_NEXUS_HOSTS = new Set(

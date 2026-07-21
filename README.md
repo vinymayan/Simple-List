@@ -1,6 +1,6 @@
-# Simple Collection Manager
+# Kairos List Manager
 
-Simple Collection Manager is an independent Next.js application for assembling, importing, reviewing, and publishing
+Kairos List Manager is an independent Next.js application for assembling, importing, reviewing, and publishing
 Nexus Mods collections. Users connect with Nexus Mods OAuth 2.0 using Authorization Code + PKCE; API credentials are
 never entered into or exposed to browser JavaScript.
 

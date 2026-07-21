@@ -763,7 +763,7 @@ export default function Home() {
                 <span className="api-accent" />
               </div>
               <div>
-                <h1>Simple Collection Manager</h1>
+                <h1>Kairos List Manager</h1>
               </div>
             </div>
 
@@ -1312,7 +1312,7 @@ export default function Home() {
       <section className="stage-card legal-stage">
         {renderPageHeading(
           isTerms ? 'Terms of Service' : 'Privacy Policy',
-          isTerms ? 'Usage terms for Simple Collection Manager.' : 'How the app handles OAuth sessions and Nexus account data.'
+          isTerms ? 'Usage terms for Kairos List Manager.' : 'How the app handles OAuth sessions and Nexus account data.'
         )}
         <div className="stage-scroll">
           <article className="legal-card in-app">
@@ -1340,8 +1340,8 @@ export default function Home() {
         <div className="sidebar-brand">
           <img src="/logo.svg" alt="" />
           <div>
-            <strong>Simple</strong>
-            <span>Collection Manager</span>
+            <strong>Kairos</strong>
+            <span>List Manager</span>
           </div>
         </div>
         <section className="sidebar-nexus-card">

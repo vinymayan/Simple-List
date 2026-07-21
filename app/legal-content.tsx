@@ -4,7 +4,7 @@ export function PrivacyContent() {
       <p><strong>Effective date: July 13, 2026.</strong></p>
       <h2>Data we process</h2>
       <p>
-        Simple Collection Manager uses Nexus Mods OAuth with PKCE. During sign-in, Nexus Mods provides access and,
+        Kairos List Manager uses Nexus Mods OAuth with PKCE. During sign-in, Nexus Mods provides access and,
         when available, refresh tokens plus account information such as your user ID, display name, and email address if
         Nexus returns it. Tokens are
         encrypted before they are stored in the application database. Your browser receives only a random HttpOnly
@@ -31,7 +31,7 @@ export function PrivacyContent() {
       </p>
       <h2>Independent service and changes</h2>
       <p>
-        Simple Collection Manager is an independent Viny Mods project and is not affiliated with, endorsed by, or
+        Kairos List Manager is an independent Viny Mods project and is not affiliated with, endorsed by, or
         operated by Nexus Mods. Material policy changes will be posted here with a new effective date.
       </p>
     </>
@@ -44,7 +44,7 @@ export function TermsContent() {
       <p><strong>Effective date: July 13, 2026.</strong></p>
       <h2>Using the service</h2>
       <p>
-        Simple Collection Manager is an independent tool for organizing and publishing Nexus Mods collections. You must
+        Kairos List Manager is an independent tool for organizing and publishing Nexus Mods collections. You must
         use a Nexus account you are authorized to access, comply with applicable law and Nexus Mods terms and API rules,
         and review collection contents before publishing them.
       </p>

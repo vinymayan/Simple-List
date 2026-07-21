@@ -3,7 +3,7 @@ import { TermsContent } from '../legal-content';
 
 export const metadata: Metadata = {
   title: 'Terms of Service',
-  description: 'Terms of Service for Simple Collection Manager.'
+  description: 'Terms of Service for Kairos List Manager.'
 };
 
 export default function TermsPage() {

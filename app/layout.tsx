@@ -4,8 +4,8 @@ import './globals.css';
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://kairos.vinymods.com.br'),
   title: {
-    default: 'Simple Collection Manager',
-    template: '%s | Simple Collection Manager'
+    default: 'Kairos List Manager',
+    template: '%s | Kairos List Manager'
   },
   description: 'Create, edit, and publish Nexus Mods collections from the browser.',
   icons: {
@@ -14,22 +14,22 @@ export const metadata: Metadata = {
     apple: '/logo.svg'
   },
   openGraph: {
-    title: 'Simple Collection Manager',
+    title: 'Kairos List Manager',
     description: 'Create, edit, and publish Nexus Mods collections from the browser.',
-    siteName: 'Simple Collection Manager',
+    siteName: 'Kairos List Manager',
     images: [
       {
         url: '/social-thumb.jpg',
         width: 1200,
         height: 630,
-        alt: 'Simple Collection Manager'
+        alt: 'Kairos List Manager'
       }
     ],
     type: 'website'
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Simple Collection Manager',
+    title: 'Kairos List Manager',
     description: 'Create, edit, and publish Nexus Mods collections from the browser.',
     images: ['/social-thumb.jpg']
   },

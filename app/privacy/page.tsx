@@ -3,7 +3,7 @@ import { PrivacyContent } from '../legal-content';
 
 export const metadata: Metadata = {
   title: 'Privacy Policy',
-  description: 'Privacy Policy for Simple Collection Manager.'
+  description: 'Privacy Policy for Kairos List Manager.'
 };
 
 export default function PrivacyPage() {

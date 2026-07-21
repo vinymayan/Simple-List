@@ -31,9 +31,10 @@ cp .env.example .env.local
 npm run dev
 ```
 
-Fill in the OAuth client ID and a unique session secret in `.env.local`. The application intentionally has no fallback
-secret. A regular Next.js development server does not expose the Cloudflare D1 binding; use mock mode for UI-only work
-or `wrangler`/OpenNext when testing a real OAuth session.
+Uncomment and fill in the OAuth client ID and a unique session secret in `.env.local` when testing real OAuth. Optional
+variables are intentionally absent rather than assigned empty values. The application has no fallback secret. A regular
+Next.js development server does not expose the Cloudflare D1 binding; use mock mode for UI-only work or
+`wrangler`/OpenNext when testing a real OAuth session.
 
 ## Configuration
 

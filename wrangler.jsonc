@@ -2,11 +2,21 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "main": ".open-next/worker.js",
   "name": "create-list",
+  "workers_dev": false,
   "compatibility_date": "2026-06-29",
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "routes": [
+    {
+      "pattern": "kairos.vinymods.com.br",
+      "custom_domain": true
+    }
+  ],
+  "secrets": {
+    "required": ["NEXUS_SESSION_SECRET", "NEXUS_OAUTH_CLIENT_ID"]
+  },
   "vars": {
-    "NEXT_PUBLIC_SITE_URL": "https://scm.vinymods.com.br",
-    "NEXUS_OAUTH_REDIRECT_URI": "https://scm.vinymods.com.br/api/auth/nexus/callback",
+    "NEXT_PUBLIC_SITE_URL": "https://kairos.vinymods.com.br",
+    "NEXUS_OAUTH_REDIRECT_URI": "https://kairos.vinymods.com.br/api/auth/nexus/callback",
     "NEXUS_OAUTH_AUTH_URL": "https://users.nexusmods.com/oauth/authorize",
     "NEXUS_OAUTH_TOKEN_URL": "https://users.nexusmods.com/oauth/token",
     "NEXUS_ALLOWED_OAUTH_HOSTS": "users.nexusmods.com",

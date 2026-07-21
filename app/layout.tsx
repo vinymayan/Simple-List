@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://scm.vinymods.com.br'),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://kairos.vinymods.com.br'),
   title: {
     default: 'Simple Collection Manager',
     template: '%s | Simple Collection Manager'

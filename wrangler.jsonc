@@ -1,7 +1,7 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "main": ".open-next/worker.js",
-  "name": "create-list",
+  "name": "kairos-list",
   "workers_dev": false,
   "compatibility_date": "2026-06-29",
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
@@ -32,7 +32,7 @@
   "services": [
     {
       "binding": "WORKER_SELF_REFERENCE",
-      "service": "create-list"
+      "service": "kairos-list"
     }
   ],
   "images": {

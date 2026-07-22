@@ -47,7 +47,8 @@ Next.js development server does not expose the Cloudflare D1 binding; use mock m
 | --- | --- | --- |
 | `NEXUS_SESSION_SECRET` | Yes | Encrypts OAuth tokens and temporary OAuth state; minimum 32 characters. |
 | `NEXUS_OAUTH_CLIENT_ID` | Yes | OAuth client identifier issued by Nexus Mods; never generate this value locally. |
-| `NEXUS_OAUTH_CLIENT_SECRET` | If issued | Private-client secret issued by Nexus Mods; store only as a platform secret. |
+| `NEXUS_OAUTH_CLIENT_TYPE` | No | Defaults to `public` (PKCE, no client secret). Set to `private` only when Nexus requires confidential-client authentication. |
+| `NEXUS_OAUTH_CLIENT_SECRET` | Private only | Private-client secret issued by Nexus Mods; never send it for a public PKCE client. |
 | `NEXUS_OAUTH_REDIRECT_URI` | Production | Exact callback registered with Nexus Mods. |
 | `NEXUS_OAUTH_AUTH_URL` | No | Defaults to `https://users.nexusmods.com/oauth/authorize`. |
 | `NEXUS_OAUTH_TOKEN_URL` | No | Defaults to `https://users.nexusmods.com/oauth/token`. |

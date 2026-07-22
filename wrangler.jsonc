@@ -12,13 +12,14 @@
     }
   ],
   "secrets": {
-    "required": ["NEXUS_SESSION_SECRET", "NEXUS_OAUTH_CLIENT_ID", "NEXUS_OAUTH_CLIENT_SECRET"]
+    "required": ["NEXUS_SESSION_SECRET", "NEXUS_OAUTH_CLIENT_ID"]
   },
   "vars": {
     "NEXT_PUBLIC_SITE_URL": "https://kairos.vinymods.com.br",
     "NEXUS_OAUTH_REDIRECT_URI": "https://kairos.vinymods.com.br/api/auth/nexus/callback",
     "NEXUS_OAUTH_AUTH_URL": "https://users.nexusmods.com/oauth/authorize",
     "NEXUS_OAUTH_TOKEN_URL": "https://users.nexusmods.com/oauth/token",
+    "NEXUS_OAUTH_CLIENT_TYPE": "public",
     "NEXUS_ALLOWED_OAUTH_HOSTS": "users.nexusmods.com",
     "NEXUS_ALLOWED_API_HOSTS": "api.nexusmods.com",
     "NEXUS_APPLICATION_NAME": "Kairos List Manager",

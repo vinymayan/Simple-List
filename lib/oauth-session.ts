@@ -125,6 +125,31 @@ export function getOAuthClientId() {
   return clientId;
 }
 
+function addOAuthClientAuthentication(body: URLSearchParams) {
+  const clientType = (process.env.NEXUS_OAUTH_CLIENT_TYPE || 'public').trim().toLowerCase();
+  if (clientType === 'public') return;
+  if (clientType !== 'private') {
+    throw new NexusApiError('NEXUS_OAUTH_CLIENT_TYPE must be either public or private.', 500);
+  }
+
+  const clientSecret = process.env.NEXUS_OAUTH_CLIENT_SECRET;
+  if (!clientSecret) {
+    throw new NexusApiError('NEXUS_OAUTH_CLIENT_SECRET is required for a private OAuth client.', 500);
+  }
+  body.set('client_secret', clientSecret);
+}
+
+function oauthProviderError(prefix: string, status: number, payload: unknown) {
+  const data = payload && typeof payload === 'object' ? payload as Record<string, unknown> : {};
+  const clean = (value: unknown, maxLength: number) => typeof value === 'string'
+    ? value.replace(/[^\x20-\x7e]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, maxLength)
+    : '';
+  const code = clean(data.error, 64);
+  const description = clean(data.error_description, 240);
+  const detail = [code, description].filter(Boolean).join(': ');
+  return new NexusApiError(`${prefix}${detail ? ` (${detail})` : ''}`, status, payload);
+}
+
 export function sanitizeReturnTo(value: string | null) {
   if (!value || !value.startsWith('/') || value.startsWith('//') || value.includes('\\') || /[\u0000-\u001f]/.test(value)) return '/';
   try {
@@ -200,8 +225,7 @@ export async function exchangeOAuthCode(code: string, codeVerifier: string): Pro
     code_verifier: codeVerifier
   });
 
-  const clientSecret = process.env.NEXUS_OAUTH_CLIENT_SECRET;
-  if (clientSecret) body.set('client_secret', clientSecret);
+  addOAuthClientAuthentication(body);
 
   const response = await fetch(oauthTokenUrl(), {
     method: 'POST',
@@ -221,7 +245,7 @@ export async function exchangeOAuthCode(code: string, codeVerifier: string): Pro
 
   const payload = await response.json().catch(async () => ({ message: await response.text().catch(() => '') }));
   if (!response.ok) {
-    throw new NexusApiError('Could not exchange Nexus OAuth code.', response.status, payload);
+    throw oauthProviderError('Could not exchange Nexus OAuth code.', response.status, payload);
   }
 
   return payload as OAuthTokenResponse;
@@ -234,8 +258,7 @@ async function refreshOAuthTokens(refreshToken: string): Promise<OAuthTokenRespo
     refresh_token: refreshToken
   });
 
-  const clientSecret = process.env.NEXUS_OAUTH_CLIENT_SECRET;
-  if (clientSecret) body.set('client_secret', clientSecret);
+  addOAuthClientAuthentication(body);
 
   const response = await fetch(oauthTokenUrl(), {
     method: 'POST',
@@ -255,7 +278,7 @@ async function refreshOAuthTokens(refreshToken: string): Promise<OAuthTokenRespo
 
   const payload = await response.json().catch(async () => ({ message: await response.text().catch(() => '') }));
   if (!response.ok) {
-    throw new NexusApiError('Could not refresh Nexus OAuth session.', response.status, payload);
+    throw oauthProviderError('Could not refresh Nexus OAuth session.', response.status, payload);
   }
 
   return payload as OAuthTokenResponse;

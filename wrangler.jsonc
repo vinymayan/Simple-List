@@ -12,7 +12,7 @@
     }
   ],
   "secrets": {
-    "required": ["NEXUS_SESSION_SECRET", "NEXUS_OAUTH_CLIENT_ID"]
+    "required": ["NEXUS_SESSION_SECRET", "NEXUS_OAUTH_CLIENT_ID", "NEXUS_OAUTH_CLIENT_SECRET"]
   },
   "vars": {
     "NEXT_PUBLIC_SITE_URL": "https://kairos.vinymods.com.br",

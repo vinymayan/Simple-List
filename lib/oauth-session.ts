@@ -194,6 +194,7 @@ export async function exchangeOAuthCode(code: string, codeVerifier: string): Pro
   const body = new URLSearchParams({
     grant_type: 'authorization_code',
     client_id: getOAuthClientId(),
+    scope: '',
     code,
     redirect_uri: oauthRedirectUri(),
     code_verifier: codeVerifier

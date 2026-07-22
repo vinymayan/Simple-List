@@ -23,6 +23,11 @@ This project is not affiliated with, endorsed by, or operated by Nexus Mods.
 - A Nexus Mods OAuth application and registered callback URL
 - A unique random `NEXUS_SESSION_SECRET` of at least 32 characters
 
+The OAuth client must be created by Nexus Mods before sign-in can work. Email `support@nexusmods.com` with the
+application name, description, dark-background logo, source-code link, and the exact production callback
+`https://kairos.vinymods.com.br/api/auth/nexus/callback`. Use only the client ID and, for a private client, the client
+secret issued by Nexus Mods; neither OAuth credential can be generated locally.
+
 ## Local setup
 
 ```bash
@@ -41,8 +46,8 @@ Next.js development server does not expose the Cloudflare D1 binding; use mock m
 | Variable | Required | Purpose |
 | --- | --- | --- |
 | `NEXUS_SESSION_SECRET` | Yes | Encrypts OAuth tokens and temporary OAuth state; minimum 32 characters. |
-| `NEXUS_OAUTH_CLIENT_ID` | Yes | Public Nexus OAuth client identifier. |
-| `NEXUS_OAUTH_CLIENT_SECRET` | If issued | Confidential client secret; store only as a platform secret. |
+| `NEXUS_OAUTH_CLIENT_ID` | Yes | OAuth client identifier issued by Nexus Mods; never generate this value locally. |
+| `NEXUS_OAUTH_CLIENT_SECRET` | If issued | Private-client secret issued by Nexus Mods; store only as a platform secret. |
 | `NEXUS_OAUTH_REDIRECT_URI` | Production | Exact callback registered with Nexus Mods. |
 | `NEXUS_OAUTH_AUTH_URL` | No | Defaults to `https://users.nexusmods.com/oauth/authorize`. |
 | `NEXUS_OAUTH_TOKEN_URL` | No | Defaults to `https://users.nexusmods.com/oauth/token`. |

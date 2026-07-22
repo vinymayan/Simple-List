@@ -23,6 +23,7 @@ export async function GET(request: Request) {
     const authUrl = new URL(oauthAuthUrl());
     authUrl.searchParams.set('response_type', 'code');
     authUrl.searchParams.set('client_id', getOAuthClientId());
+    authUrl.searchParams.set('scope', '');
     authUrl.searchParams.set('redirect_uri', oauthRedirectUri());
     authUrl.searchParams.set('state', state);
     authUrl.searchParams.set('code_challenge', codeChallenge);

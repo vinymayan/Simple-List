@@ -211,9 +211,13 @@ export async function exchangeOAuthCode(code: string, codeVerifier: string): Pro
     },
     body,
     cache: 'no-store',
-    redirect: 'error',
+    redirect: 'manual',
     signal: AbortSignal.timeout(OAUTH_REQUEST_TIMEOUT_MS)
   });
+
+  if (response.status >= 300 && response.status < 400) {
+    throw new NexusApiError('Refusing to follow a redirected Nexus OAuth token request.', 502);
+  }
 
   const payload = await response.json().catch(async () => ({ message: await response.text().catch(() => '') }));
   if (!response.ok) {
@@ -241,9 +245,13 @@ async function refreshOAuthTokens(refreshToken: string): Promise<OAuthTokenRespo
     },
     body,
     cache: 'no-store',
-    redirect: 'error',
+    redirect: 'manual',
     signal: AbortSignal.timeout(OAUTH_REQUEST_TIMEOUT_MS)
   });
+
+  if (response.status >= 300 && response.status < 400) {
+    throw new NexusApiError('Refusing to follow a redirected Nexus OAuth refresh request.', 502);
+  }
 
   const payload = await response.json().catch(async () => ({ message: await response.text().catch(() => '') }));
   if (!response.ok) {

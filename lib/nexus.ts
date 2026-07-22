@@ -57,9 +57,15 @@ export async function nexusFetch<T>(urlOrPath: string, options: FetchOptions): P
     },
     body: options.body ? JSON.stringify(options.body) : undefined,
     cache: 'no-store',
-    redirect: 'error',
+    // Cloudflare Workers supports manual redirect handling, not `error`.
+    // Keeping redirects manual prevents bearer tokens from reaching another host.
+    redirect: 'manual',
     signal: AbortSignal.timeout(NEXUS_REQUEST_TIMEOUT_MS)
   });
+
+  if (response.status >= 300 && response.status < 400) {
+    throw new NexusApiError('Refusing to follow a redirected Nexus API request.', 502);
+  }
 
   const text = await response.text();
   let payload: unknown = text;
